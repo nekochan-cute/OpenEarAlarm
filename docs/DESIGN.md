@@ -18,13 +18,13 @@ Apple's HIG principles: https://developer.apple.com/design/human-interface-guide
 
 | State | User-visible behavior |
 |---|---|
-| Empty | Explanatory message and add action |
+| Empty | Explanatory message and add action, with quick 10/20/30-minute timers |
 | Saved | Home shows time and repeat cadence |
 | Disabled | Distinct but legible disabled alarm time |
 | Delete | Explicit confirmation and undo snackbar |
 | Exact-alarm restricted | Diagnostics flags capability; UI save reports OS rejection |
 | Notification permission denied | Diagnostics contains contextual request |
-| Selected ringtone missing | Bundled ringtone fallback |
+| Selected ringtone missing | Offline generated WAV fallback (generated in app-private storage) |
 | No headphones | Prefer phone speaker (wake-up priority) |
 | Audio route change | Re-evaluate device preference, log actual routing mismatch |
 | Notification / full-screen restricted | Allow in-app edit and diagnostics; OS can limit ringing UI |
@@ -59,7 +59,7 @@ Device routing is advisory under Android's audio policy. `MediaPlayer.setPreferr
 | Reduce Motion | Implemented | No UI animations essential to operation |
 | RTL | Partial | Compose relative padding; Japanese-only UI strings |
 | Offline & privacy | Implemented | No internet permission, SDKs or trackers |
-| Scheduling correctness | Unit-tested in source | Pending Gradle build; standalone Kotlin smoke checks |
+| Scheduling correctness | Unit-tested in source | Standalone Kotlin smoke checks pass; full Gradle build pending |
 | Device playback reliability | Unknown | Requires actual devices |
 
 Current distribution decision: **not ready for release**. This is an early implementation, not a validated replacement for a critical wake-up alarm.

@@ -78,8 +78,16 @@ class MainActivity : ComponentActivity() {
 
             fun reload() { alarms.clear(); alarms.addAll(store.all().sortedWith(compareBy({ it.hour }, { it.minute }))) }
             fun save(alarm: AlarmSpec) {
+                val previous = store.byId(alarm.id)
                 store.put(alarm)
-                scheduler.update(alarm)
+                try {
+                    scheduler.update(alarm)
+                } catch (failure: Exception) {
+                    // Keep persisted state aligned with the OS alarm registration on failure.
+                    if (previous == null) store.delete(alarm.id) else store.put(previous)
+                    if (previous != null) runCatching { scheduler.update(previous) }
+                    throw failure
+                }
                 reload()
                 page = Page.Home
             }
@@ -208,9 +216,10 @@ private fun AlarmHome(
     val notificationBlocked = Build.VERSION.SDK_INT >= 33 &&
         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
     val next = remember(alarms.toList()) {
-        alarms.filter { it.enabled }.minByOrNull {
-            AlarmMath.nextTrigger(it, Instant.now(), ZoneId.systemDefault())
-        }
+        val now = Instant.now()
+        alarms.filter { it.enabled }.mapNotNull { alarm ->
+            runCatching { alarm to AlarmMath.nextTrigger(alarm, now, ZoneId.systemDefault()) }.getOrNull()
+        }.minByOrNull { it.second }?.first
     }
     LazyColumn(
         modifier = modifier.fillMaxSize(),

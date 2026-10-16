@@ -28,3 +28,7 @@ Use a secondary alarm until end-to-end tests on actual devices establish reliabi
 ## License
 
 GNU General Public License version 3 or later; see `LICENSE`. Generated in-repo alarm tone is original and freely redistributable under the same license.
+
+## Safety and status
+
+This is a development snapshot, **not** a validated waking alarm. Android SDK builds, CI, Doze, Bluetooth switching, Direct Boot and device-specific foreground-service behavior still need verification. The generated fallback tone is local and requires no binary sound assets.
