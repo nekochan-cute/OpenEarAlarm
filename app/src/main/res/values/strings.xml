@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">OpenEar Alarm</string>
+    <string name="alarm_channel">アラーム</string>
+    <string name="alarm_channel_desc">鳴動中のアラームを操作します</string>
+    <string name="alarm_stop">停止</string>
+    <string name="alarm_snooze">スヌーズ</string>
+</resources>
