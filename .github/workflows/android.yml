@@ -59,13 +59,7 @@ jobs:
           target: google_apis
           profile: pixel_6
           disable-animations: true
-          script: |
-            set +e
-            gradle --no-daemon :app:connectedDebugAndroidTest
-            result=$?
-            mkdir -p screenshots
-            adb pull /sdcard/Android/data/dev.openear.alarm/files/openear-home.png screenshots/openear-home.png || true
-            exit "$result"
+          script: bash .github/scripts/emulator-ui-check.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
