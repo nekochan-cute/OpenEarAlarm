@@ -128,7 +128,13 @@ class AlarmPlaybackService : Service() {
             }
             .build()
         focus = request
-        hasAudioFocus = audio.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        val focusResult = audio.requestAudioFocus(request)
+        // When transient audio focus is denied, attempt playback anyway.
+        // System DND and routing policies still control final audibility.
+        hasAudioFocus = true
+        if (focusResult != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            Log.w(TAG, "Audio focus not granted ($focusResult); attempting alarm playback")
+        }
 
         if (spec.autoAdjustVolume) {
             try {
