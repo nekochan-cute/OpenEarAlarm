@@ -7,7 +7,18 @@ import org.json.JSONObject
 
 /** Small synchronous store: commit before scheduling so a receiver sees durable state. */
 class AlarmStore(context: Context) {
-    private val prefs = context.getSharedPreferences("alarms_v1", Context.MODE_PRIVATE)
+    // Direct Boot: schedules must be readable before the first unlock after reboot.
+    private val deviceContext = context.createDeviceProtectedStorageContext()
+    private val prefs = run {
+        val existing = deviceContext.getSharedPreferences("alarms_v1", Context.MODE_PRIVATE)
+        val manager = context.getSystemService(android.os.UserManager::class.java)
+        if (manager.isUserUnlocked && !existing.contains("items") &&
+            context.getSharedPreferences("alarms_v1", Context.MODE_PRIVATE).contains("items")) {
+            // One-time migration from credential-encrypted storage on upgraded installs.
+            deviceContext.moveSharedPreferencesFrom(context, "alarms_v1")
+        }
+        deviceContext.getSharedPreferences("alarms_v1", Context.MODE_PRIVATE)
+    }
 
     @Synchronized
     fun all(): List<AlarmSpec> = try {

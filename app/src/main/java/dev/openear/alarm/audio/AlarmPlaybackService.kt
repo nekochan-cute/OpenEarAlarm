@@ -21,6 +21,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
@@ -152,7 +153,7 @@ class AlarmPlaybackService : Service() {
             }
         }
 
-        val fallback = try { Uri.fromFile(BundledTone.getOrCreate(this)) } catch (e: Exception) {
+        val fallback = try { Uri.fromFile(BundledTone.getOrCreate(createDeviceProtectedStorageContext())) } catch (e: Exception) {
             Log.e(TAG, "Bundled alarm tone unavailable", e)
             null
         }
@@ -180,6 +181,8 @@ class AlarmPlaybackService : Service() {
         val candidate = MediaPlayer()
         return try {
             candidate.setAudioAttributes(attr)
+            // Keep the CPU awake only while the MediaPlayer is actively playing.
+            candidate.setWakeMode(this, PowerManager.PARTIAL_WAKE_LOCK)
             candidate.setDataSource(this, uri)
             candidate.isLooping = true
             candidate.prepare()

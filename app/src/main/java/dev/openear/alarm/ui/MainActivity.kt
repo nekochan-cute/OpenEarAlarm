@@ -170,14 +170,23 @@ class MainActivity : ComponentActivity() {
                                     catch (e: Exception) { scope.launch { snackbar.showSnackbar("登録できませんでした: ${e.message}") } }
                                 },
                                 onDelete = {
-                                    scheduler.cancel(spec.id)
-                                    store.delete(spec.id)
-                                    reload()
-                                    page = Page.Home
-                                    scope.launch {
-                                        if (snackbar.showSnackbar("アラームを削除しました", "元に戻す") == SnackbarResult.ActionPerformed) {
-                                            store.put(spec); scheduler.update(spec); reload()
+                                    try {
+                                        scheduler.cancel(spec.id)
+                                        store.delete(spec.id)
+                                        reload()
+                                        page = Page.Home
+                                        scope.launch {
+                                            if (snackbar.showSnackbar("アラームを削除しました", "元に戻す") == SnackbarResult.ActionPerformed) {
+                                                try { save(spec) }
+                                                catch (failure: Exception) {
+                                                    snackbar.showSnackbar("復元できませんでした: ${failure.message}")
+                                                }
+                                            }
                                         }
+                                    } catch (failure: Exception) {
+                                        // A failed persistence commit must not silently unschedule an alarm.
+                                        runCatching { scheduler.update(spec) }
+                                        scope.launch { snackbar.showSnackbar("削除できませんでした: ${failure.message}") }
                                     }
                                 }
                             )

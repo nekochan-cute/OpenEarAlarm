@@ -40,8 +40,8 @@ Device routing is advisory under Android's audio policy. `MediaPlayer.setPreferr
 
 ## Current risks / blockers before distribution
 
-1. No Android SDK or Gradle distribution was available in the authoring environment, so full Android compilation, instrumentation, APK generation, and device validation remain pending.
-2. **Direct Boot** (before first device unlock), multi-step snooze policies, per-output-device target volume and an execution-history panel are deferred. Android cannot fire alarms while powered off or after a user force-stop.
+1. GitHub Actions now builds a debug APK and runs unit tests and Android Lint. Emulator instrumentation tests are configured; actual device validation remains pending.
+2. **Direct Boot** storage and receivers are implemented but before-first-unlock ringing is not hardware-verified. Multi-step snooze policies, per-output-device target volume and an execution-history panel are deferred. Android cannot fire alarms while powered off or after a user force-stop.
 3. The first version uses `SharedPreferences` as a compact crash-resilient synchronous store, not the planned Room/DataStore architecture. Corrupt entries are skipped; add backup/import and migration tests before shipping.
 4. Android 14+ full-screen intent may be disabled by policy/user. Android 13+ notifications may be denied. A non-notifying foreground service alone does not offer a dependable waking UX.
 5. Android's media playback foreground-service and audio-focus limits must be checked on actual Android 15/16 devices before declaring wake-up reliability.
@@ -59,7 +59,7 @@ Device routing is advisory under Android's audio policy. `MediaPlayer.setPreferr
 | Reduce Motion | Implemented | No UI animations essential to operation |
 | RTL | Partial | Compose relative padding; Japanese-only UI strings |
 | Offline & privacy | Implemented | No internet permission, SDKs or trackers |
-| Scheduling correctness | Unit-tested in source | Standalone Kotlin smoke checks pass; full Gradle build pending |
+| Scheduling correctness | Tested | GitHub Actions Gradle JVM tests pass |
 | Device playback reliability | Unknown | Requires actual devices |
 
 Current distribution decision: **not ready for release**. This is an early implementation, not a validated replacement for a critical wake-up alarm.

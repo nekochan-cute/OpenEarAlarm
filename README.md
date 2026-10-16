@@ -12,11 +12,11 @@ A fully open-source, offline alarm-clock project designed around headphone-first
 - `AlarmManager.setAlarmClock()` exact scheduling, boot/clock/time-zone/app-update rescheduling, one-off and weekly alarms.
 - Foreground ringing service, ongoing notification with stop/snooze actions, full-screen ringing activity, 15-minute automatic stop, vibration.
 - Headphone-first device preference with speaker fallback after disconnect; device diagnostics and contextual notification permission request.
-- Unit tests for scheduling and policy defaults. `docs/DESIGN.md` includes design and release blockers.
+- CI APK generation, unit tests, Android Lint and emulator instrumentation checks. `docs/DESIGN.md` includes design and release blockers.
 
 ## Building
 
-Open the project directory in Android Studio with **SDK 36, JDK 17+ and Gradle 8.13**; sync, then `gradle :app:assembleDebug` (or configure a Gradle wrapper using `gradle wrapper --gradle-version 8.13`). The original authoring environment lacked the Android SDK, Gradle distribution and internet access, so an APK was **not** built or tested here. `gradle/wrapper/gradle-wrapper.properties` records the intended distribution, but the wrapper JAR/scripts need to be generated in an environment with Gradle installed.
+Open the project directory in Android Studio with **SDK 36, JDK 17+ and Gradle 8.13**; sync, then `gradle :app:assembleDebug` (or configure a Gradle wrapper using `gradle wrapper --gradle-version 8.13`). GitHub Actions builds a debug APK, runs JVM unit tests and Android Lint, and runs emulator UI checks. Physical-device hardware tests are still required. `gradle/wrapper/gradle-wrapper.properties` records the intended distribution, but the wrapper JAR/scripts need to be generated in an environment with Gradle installed.
 
 - Min SDK: 28 (Android 9)
 - Target / compile: 36 (Android 16)
@@ -31,4 +31,4 @@ GNU General Public License version 3 or later; see `LICENSE`. Generated in-repo 
 
 ## Safety and status
 
-This is a development snapshot, **not** a validated waking alarm. Android SDK builds, CI, Doze, Bluetooth switching, Direct Boot and device-specific foreground-service behavior still need verification. The generated fallback tone is local and requires no binary sound assets.
+This is a development snapshot, **not** a validated waking alarm. CI compilation, JVM unit tests and lint pass. Emulator UI tests run in CI. Doze, Bluetooth switching, before-first-unlock ringing and device-specific foreground-service behavior still require device verification. The generated fallback tone is local and requires no binary sound assets.
