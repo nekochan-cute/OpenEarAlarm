@@ -37,7 +37,7 @@ class MainActivityTest {
     }
 
     @Test fun opensAlarmEditorWithoutCrashing() {
-        rule.onNodeWithText("追加").performClick()
+        rule.onNodeWithContentDescription("アラームを追加").performClick()
         rule.onNodeWithText("アラームを追加").assertIsDisplayed()
         rule.onNodeWithText("アラーム名（任意）").assertIsDisplayed()
         rule.onNodeWithText("A · アラーム音量を使用").assertExists()

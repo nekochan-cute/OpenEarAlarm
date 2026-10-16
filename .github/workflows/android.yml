@@ -22,7 +22,7 @@ jobs:
         with:
           gradle-version: '8.13'
       - name: Assemble and unit tests
-        run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+        run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest :app:testDebugUnitTest :app:lintDebug
       - uses: actions/upload-artifact@v4
         if: success()
         with:
@@ -60,9 +60,12 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
+            set +e
             gradle --no-daemon :app:connectedDebugAndroidTest
+            result=$?
             mkdir -p screenshots
-            adb pull /sdcard/Android/data/dev.openear.alarm/files/openear-home.png screenshots/openear-home.png
+            adb pull /sdcard/Android/data/dev.openear.alarm/files/openear-home.png screenshots/openear-home.png || true
+            exit "$result"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

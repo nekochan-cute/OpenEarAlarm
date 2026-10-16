@@ -8,7 +8,7 @@ import kotlin.math.PI
 import kotlin.math.sin
 
 /** An offline synthesized looping fallback; no network, proprietary sound, or binary asset. */
-internal object BundledTone {
+object BundledTone {
     fun getOrCreate(context: Context): File {
         val folder = context.getDir("tone", Context.MODE_PRIVATE)
         val destination = File(folder, "alarm-v1.wav")

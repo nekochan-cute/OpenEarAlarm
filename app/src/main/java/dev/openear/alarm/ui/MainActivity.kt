@@ -141,6 +141,7 @@ class MainActivity : ComponentActivity() {
                         if (page == Page.Home) {
                             ExtendedFloatingActionButton(
                                 onClick = ::newAlarm,
+                                modifier = Modifier.semantics { contentDescription = "アラームを追加" },
                                 icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
                                 text = { Text("追加") }
                             )
