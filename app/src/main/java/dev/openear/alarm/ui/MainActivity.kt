@@ -57,6 +57,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlinx.coroutines.launch
 
 private enum class Page { Home, Edit, Settings, Diagnostics }
@@ -254,7 +255,7 @@ private fun AlarmHome(
                     Text("次のアラーム", style = MaterialTheme.typography.labelLarge)
                     Text(instant.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm")),
                         style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.SemiBold)
-                    Text("${instant.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("M月d日 EEEE"))} に鳴ります",
+                    Text("${instant.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.JAPAN))} に鳴ります",
                         style = MaterialTheme.typography.bodyMedium)
                 }
             }
