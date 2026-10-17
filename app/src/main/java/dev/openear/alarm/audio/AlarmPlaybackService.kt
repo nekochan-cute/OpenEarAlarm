@@ -69,7 +69,8 @@ class AlarmPlaybackService : Service() {
         when (intent?.action) {
             ACTION_START -> {
                 val id = intent.getIntExtra(EXTRA_ALARM_ID, -1)
-                val spec = AlarmStore(this).byId(id) ?: return START_NOT_STICKY.also { stopSelf() }
+                val spec = AlarmStore(this).byId(id)
+                    ?: return START_NOT_STICKY.also { if (activeIds.isEmpty()) stopSelf() }
                 if (!activeIds.add(id)) return START_NOT_STICKY
                 // Android 15+ requires foreground state before obtaining audio focus.
                 try {
@@ -118,8 +119,10 @@ class AlarmPlaybackService : Service() {
             .setOnAudioFocusChangeListener { change ->
                 when (change) {
                     AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                        hasAudioFocus = false
-                        player?.setVolume(0f, 0f)
+                        // The app's explicit wake-up-first policy must not mute the alarm
+                        // permanently because another player holds transient focus.
+                        // Device policy (including DND) can still override this.
+                        Log.w(TAG, "Audio focus lost while ringing ($change); retaining alarm gain")
                     }
                     AudioManager.AUDIOFOCUS_GAIN -> {
                         hasAudioFocus = true

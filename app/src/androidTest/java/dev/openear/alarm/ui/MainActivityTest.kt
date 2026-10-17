@@ -2,6 +2,9 @@
 package dev.openear.alarm.ui
 
 import android.graphics.Bitmap
+import android.content.ContentValues
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
@@ -12,7 +15,6 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import java.io.File
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,14 +26,12 @@ class MainActivityTest {
 
     @Test fun opensHomeAndSettingsWithoutCrashing() {
         rule.onNodeWithText("クイックタイマー").assertIsDisplayed()
-        val bitmap = rule.onRoot().captureToImage().asAndroidBitmap()
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val file = File(context.getExternalFilesDir(null), "openear-home.png")
-        file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        saveScreenshot("openear-home.png")
         rule.onNodeWithContentDescription("設定").performClick()
         rule.onNodeWithText("新しいアラームの初期値").assertIsDisplayed()
         rule.onNodeWithText("A · アラーム音量を使用").assertIsDisplayed()
         rule.onNodeWithText("B · 音量を自動調整").assertIsDisplayed()
+        saveScreenshot("openear-settings.png")
         rule.onNodeWithContentDescription("戻る").performClick()
         rule.onNodeWithText("クイックタイマー").assertIsDisplayed()
     }
@@ -42,5 +42,28 @@ class MainActivityTest {
         rule.onNodeWithText("アラーム名（任意）").assertIsDisplayed()
         rule.onNodeWithText("A · アラーム音量を使用").assertExists()
         rule.onNodeWithText("B · 音量を自動調整").assertExists()
+        saveScreenshot("openear-editor.png")
+    }
+
+    /** Capture Compose pixels directly: avoids unrelated emulator Launcher ANR dialogs. */
+    private fun saveScreenshot(name: String) {
+        val image = rule.onRoot().captureToImage().asAndroidBitmap()
+        val resolver = InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/OpenEarAlarm")
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val uri = checkNotNull(resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)) {
+            "Could not create screenshot export"
+        }
+        try {
+            checkNotNull(resolver.openOutputStream(uri)).use { stream ->
+                check(image.compress(Bitmap.CompressFormat.PNG, 100, stream))
+            }
+        } finally {
+            resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+        }
     }
 }
