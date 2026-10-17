@@ -13,6 +13,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
@@ -48,6 +50,28 @@ class MainActivityTest {
         val sunday = rule.onNodeWithText("日").fetchSemanticsNode().boundsInRoot.top
         assertEquals("Weekday chips should be a single row", monday, sunday, 2f)
         saveScreenshot("openear-editor.png")
+    }
+
+    @Test fun createsAndDeletesAlarmThroughUi() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = dev.openear.alarm.data.AlarmStore(context)
+        val label = "OpenEar UI test " + System.nanoTime()
+        try {
+            rule.onNodeWithContentDescription("アラームを追加").performClick()
+            rule.onNodeWithText("アラーム名（任意）").performTextInput(label)
+            rule.onNodeWithText("保存").performClick()
+            rule.onNodeWithText(label).assertIsDisplayed()
+            saveScreenshot("openear-alarm-list.png")
+            rule.onNodeWithText(label).performClick()
+            rule.onNodeWithText("アラームを削除").performScrollTo().performClick()
+            rule.onNodeWithText("削除").performClick()
+            rule.onNodeWithText("アラームがありません").assertIsDisplayed()
+        } finally {
+            store.all().filter { it.label == label }.forEach { spec ->
+                runCatching { dev.openear.alarm.scheduler.AlarmScheduler(context).cancel(spec.id) }
+                store.delete(spec.id)
+            }
+        }
     }
 
     /** Capture Compose pixels directly: avoids unrelated emulator Launcher ANR dialogs. */
