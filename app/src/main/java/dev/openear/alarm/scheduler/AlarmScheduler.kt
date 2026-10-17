@@ -6,6 +6,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
+import dev.openear.alarm.data.AlarmHistory
 import dev.openear.alarm.data.AlarmMath
 import dev.openear.alarm.data.AlarmSpec
 import dev.openear.alarm.data.AlarmStore
@@ -70,20 +72,26 @@ class AlarmScheduler(private val context: Context) {
     fun rescheduleAll() {
         val now = System.currentTimeMillis()
         store.all().forEach { alarm ->
-            val snoozeAt = store.snoozeUntil(alarm.id)
-            if (alarm.enabled && alarm.absoluteTriggerMillis != null && alarm.absoluteTriggerMillis <= now) {
-                store.put(alarm.copy(enabled = false))
-                cancel(alarm.id)
-            } else if (alarm.enabled) update(alarm) else cancel(alarm.id)
+            try {
+                val snoozeAt = store.snoozeUntil(alarm.id)
+                if (alarm.enabled && alarm.absoluteTriggerMillis != null && alarm.absoluteTriggerMillis <= now) {
+                    store.put(alarm.copy(enabled = false))
+                    cancel(alarm.id)
+                } else if (alarm.enabled) update(alarm) else cancel(alarm.id)
 
-            // A one-shot alarm may be disabled because it has already fired,
-            // but its snooze must continue to work after reboot.
-            if (snoozeAt != null) {
-                if (snoozeAt >= now) {
-                    scheduleSnoozeAt(alarm.id, snoozeAt)
-                } else if (now - snoozeAt <= MISSED_SNOOZE_GRACE_MS) {
-                    scheduleSnoozeAt(alarm.id, now + 2_000L)
-                } // Otherwise cancel() already cleared an expired snooze.
+                // A one-shot alarm may already be disabled after firing,
+                // but any outstanding snooze still needs to survive reboot.
+                if (snoozeAt != null) {
+                    if (snoozeAt >= now) {
+                        scheduleSnoozeAt(alarm.id, snoozeAt)
+                    } else if (now - snoozeAt <= MISSED_SNOOZE_GRACE_MS) {
+                        scheduleSnoozeAt(alarm.id, now + 2_000L)
+                    }
+                }
+            } catch (failure: Exception) {
+                // One corrupt or unschedulable alarm must not block every other alarm.
+                Log.e("AlarmScheduler", "Failed to reschedule alarm ${alarm.id}", failure)
+                AlarmHistory.record(context, alarm.id, "再登録に失敗")
             }
         }
     }
