@@ -29,6 +29,7 @@ import androidx.core.app.NotificationCompat
 import dev.openear.alarm.R
 import dev.openear.alarm.data.AlarmSpec
 import dev.openear.alarm.data.AlarmStore
+import dev.openear.alarm.data.AlarmHistory
 import dev.openear.alarm.scheduler.AlarmScheduler
 import dev.openear.alarm.ui.RingingActivity
 import kotlin.math.roundToInt
@@ -79,6 +80,7 @@ class AlarmPlaybackService : Service() {
                     else updateNotification()
                 } catch (e: Exception) {
                     Log.e(TAG, "Alarm start failed", e)
+                    AlarmHistory.record(this, id, "鳴動開始失敗")
                     postLaunchFailure(this, spec)
                     finishAlarm(snooze = false)
                 }
@@ -165,11 +167,13 @@ class AlarmPlaybackService : Service() {
             ?: fallback?.let { createPlayer(it, attributes) }
         if (player == null) {
             Log.e(TAG, "Both selected and bundled alarm sound failed")
+            AlarmHistory.record(this, spec.id, "音声再生不可・振動のみ")
             // Preserve the vibration / alarm screen and surface notification; never crash.
         } else {
             player?.addOnRoutingChangedListener(routingListener, handler)
             routeOutput()
             player?.start()
+            AlarmHistory.record(this, spec.id, "音声再生を開始")
             beginFadeIn(spec.fadeInSeconds)
         }
         if (spec.vibrate) {
@@ -245,6 +249,7 @@ class AlarmPlaybackService : Service() {
     }
 
     private fun finishAlarm(snooze: Boolean) {
+        activeIds.forEach { AlarmHistory.record(this, it, if (snooze) "スヌーズ" else "停止") }
         val store = AlarmStore(this)
         if (snooze) {
             activeIds.forEach { id ->

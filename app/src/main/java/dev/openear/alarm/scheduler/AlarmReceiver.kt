@@ -8,6 +8,7 @@ import android.os.Build
 import android.util.Log
 import dev.openear.alarm.audio.AlarmPlaybackService
 import dev.openear.alarm.data.AlarmStore
+import dev.openear.alarm.data.AlarmHistory
 
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -32,6 +33,7 @@ class AlarmReceiver : BroadcastReceiver() {
                 else AlarmScheduler(context).update(alarm)
             } catch (e: Exception) { Log.e(TAG, "Failed to update recurrence", e) }
         }
+        AlarmHistory.record(context, id, if (snoozed) "スヌーズ時刻に到達" else "アラーム時刻に到達")
         val service = Intent(context, AlarmPlaybackService::class.java).apply {
             action = AlarmPlaybackService.ACTION_START
             putExtra(AlarmPlaybackService.EXTRA_ALARM_ID, id)
@@ -41,6 +43,7 @@ class AlarmReceiver : BroadcastReceiver() {
             else context.startService(service)
         } catch (e: Exception) {
             Log.e(TAG, "Foreground service launch failed", e)
+            AlarmHistory.record(context, id, "再生サービスの起動失敗")
             AlarmPlaybackService.postLaunchFailure(context, alarm)
         }
     }

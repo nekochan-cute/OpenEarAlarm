@@ -51,6 +51,7 @@ import dev.openear.alarm.data.AlarmMath
 import dev.openear.alarm.data.AlarmSpec
 import dev.openear.alarm.data.AlarmStore
 import dev.openear.alarm.data.DefaultSettings
+import dev.openear.alarm.data.AlarmHistory
 import dev.openear.alarm.scheduler.AlarmScheduler
 import java.time.Instant
 import java.time.ZoneId
@@ -513,6 +514,19 @@ private fun Diagnostics(modifier: Modifier = Modifier) {
         Text("接続一覧は、実際のアラーム音の出力先を保証するものではありません。イヤホン切断時には本体スピーカーへの切替を試みます。",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedButton(onClick = { refresh++ }) { Text("再読み込み") }
+        HorizontalDivider()
+        Text("直近の実行履歴（端末内のみ）", style = MaterialTheme.typography.titleMedium)
+        val history = remember(refresh) { AlarmHistory.recent(context).take(10) }
+        if (history.isEmpty()) {
+            Text("実行履歴はまだありません", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            history.forEach { entry ->
+                val whenText = Instant.ofEpochMilli(entry.timeMillis).atZone(ZoneId.systemDefault())
+                    .format(DateTimeFormatter.ofPattern("M/d HH:mm:ss"))
+                Text("$whenText · #${entry.id} · ${entry.action}",
+                    style = MaterialTheme.typography.bodyMedium)
+            }
+        }
     }
 }
 
