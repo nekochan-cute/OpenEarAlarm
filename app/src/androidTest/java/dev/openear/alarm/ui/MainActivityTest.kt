@@ -15,6 +15,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -42,6 +43,10 @@ class MainActivityTest {
         rule.onNodeWithText("アラーム名（任意）").assertIsDisplayed()
         rule.onNodeWithText("A · アラーム音量を使用").assertExists()
         rule.onNodeWithText("B · 音量を自動調整").assertExists()
+        // Day chips must stay on a single line instead of wrapping Sunday.
+        val monday = rule.onNodeWithText("月").fetchSemanticsNode().boundsInRoot.top
+        val sunday = rule.onNodeWithText("日").fetchSemanticsNode().boundsInRoot.top
+        assertEquals("Weekday chips should be a single row", monday, sunday, 2f)
         saveScreenshot("openear-editor.png")
     }
 

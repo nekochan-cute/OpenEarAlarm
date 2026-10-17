@@ -138,7 +138,7 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                     floatingActionButton = {
-                        if (page == Page.Home) {
+                        if (page == Page.Home && alarms.isNotEmpty()) {
                             ExtendedFloatingActionButton(
                                 onClick = ::newAlarm,
                                 modifier = Modifier.semantics { contentDescription = "アラームを追加" },
@@ -246,19 +246,15 @@ private fun AlarmHome(
                 }
             }
         }
-        item {
+        if (next != null) item {
+            val instant = AlarmMath.nextTrigger(next, Instant.now(), ZoneId.systemDefault())
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                 Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Text("次のアラーム", style = MaterialTheme.typography.labelLarge)
-                    Text(next?.let {
-                        val instant = AlarmMath.nextTrigger(it, Instant.now(), ZoneId.systemDefault())
-                        instant.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm"))
-                    } ?: "設定されていません",
+                    Text(instant.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm")),
                         style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.SemiBold)
-                    Text(next?.let { a ->
-                        val instant = AlarmMath.nextTrigger(a, Instant.now(), ZoneId.systemDefault())
-                        "${instant.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("M月d日 EEEE"))} に鳴ります"
-                    } ?: "＋からアラームを追加できます", style = MaterialTheme.typography.bodyMedium)
+                    Text("${instant.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("M月d日 EEEE"))} に鳴ります",
+                        style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
@@ -285,7 +281,10 @@ private fun AlarmHome(
                     Spacer(Modifier.height(10.dp))
                     Text("追加ボタンから最初のアラームを設定してください", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(20.dp))
-                    OutlinedButton(onClick = onNew) { Text("アラームを追加") }
+                    OutlinedButton(
+                        onClick = onNew,
+                        modifier = Modifier.semantics { contentDescription = "アラームを追加" }
+                    ) { Text("アラームを追加") }
                 }
             }
         } else items(alarms, key = { it.id }) { alarm ->
@@ -369,17 +368,19 @@ private fun AlarmEdit(
             OutlinedTextField(value = label, onValueChange = { label = it.take(60) }, label = { Text("アラーム名（任意）") },
                 singleLine = true, modifier = Modifier.fillMaxWidth())
             Text("繰り返し", style = MaterialTheme.typography.titleMedium)
-            androidx.compose.foundation.layout.FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
+            // Exactly one horizontal row at phone widths: a wrapped Sunday looked
+            // like a separate group and made repeat schedules hard to scan.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                listOf("月", "火", "水", "木", "金", "土", "日").forEachIndexed { index, text ->
+                listOf("月", "火", "水", "木", "金", "土", "日").forEachIndexed { index, day ->
                     val bit = 1 shl index
                     FilterChip(
                         selected = mask and bit != 0,
                         onClick = { mask = mask xor bit },
-                        label = { Text(text) },
-                        modifier = Modifier.widthIn(min = 42.dp)
+                        label = { Text(day, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) },
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
