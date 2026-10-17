@@ -55,6 +55,22 @@ class AlarmStore(context: Context) {
         return next
     }
 
+    /** Snooze deadlines live in device-protected storage to survive locked reboots. */
+    @Synchronized
+    fun snoozeUntil(id: Int): Long? =
+        prefs.getLong("snooze_$id", 0L).takeIf { it > 0L }
+
+    @Synchronized
+    fun setSnoozeUntil(id: Int, whenMillis: Long) {
+        require(whenMillis > 0L)
+        check(prefs.edit().putLong("snooze_$id", whenMillis).commit())
+    }
+
+    @Synchronized
+    fun clearSnooze(id: Int) {
+        check(prefs.edit().remove("snooze_$id").commit())
+    }
+
     @Synchronized
     fun put(alarm: AlarmSpec) {
         val alarms = all().filterNot { it.id == alarm.id } + alarm

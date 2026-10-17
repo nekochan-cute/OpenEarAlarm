@@ -17,6 +17,13 @@ class AlarmReceiver : BroadcastReceiver() {
         val alarm = store.byId(id) ?: return
         val snoozed = intent.getBooleanExtra(EXTRA_SNOOZED, false)
         if (!snoozed && !alarm.enabled) return
+        if (snoozed) {
+            // Suppress a superseded snooze event after an edit or cancellation.
+            val due = store.snoozeUntil(id) ?: return
+            if (due != intent.getLongExtra(EXTRA_TRIGGER_AT, -1L)) return
+            try { AlarmScheduler(context).cancelSnooze(id) }
+            catch (e: Exception) { Log.e(TAG, "Unable to acknowledge snooze", e) }
+        }
 
         // Schedule the next occurrence first, before any audio initialization can fail.
         if (!snoozed) {
