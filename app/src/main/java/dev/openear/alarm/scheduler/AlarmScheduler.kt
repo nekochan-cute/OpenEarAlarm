@@ -32,9 +32,20 @@ class AlarmScheduler(private val context: Context) {
         manager.setAlarmClock(AlarmManager.AlarmClockInfo(trigger.toEpochMilli(), openApp), event)
     }
 
-    fun scheduleSnooze(id: Int, minutes: Int) {
+    fun scheduleSnooze(id: Int, minutes: Int): Boolean {
         require(minutes in 1..60)
-        scheduleSnoozeAt(id, System.currentTimeMillis() + minutes * 60_000L)
+        val alarm = store.byId(id) ?: return false
+        val count = store.snoozeCount(id)
+        if (alarm.snoozeLimit > 0 && count >= alarm.snoozeLimit) return false
+        // Persist the count before registration, so a reboot cannot reset it.
+        store.setSnoozeCount(id, count + 1)
+        try {
+            scheduleSnoozeAt(id, System.currentTimeMillis() + minutes * 60_000L)
+        } catch (failure: Exception) {
+            store.setSnoozeCount(id, count)
+            throw failure
+        }
+        return true
     }
 
     private fun scheduleSnoozeAt(id: Int, whenMillis: Long) {

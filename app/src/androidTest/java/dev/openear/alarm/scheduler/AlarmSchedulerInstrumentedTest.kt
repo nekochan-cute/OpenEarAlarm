@@ -15,6 +15,25 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AlarmSchedulerInstrumentedTest {
+    @Test fun snoozeLimitIsEnforcedAndPersistsThroughSchedulerInstances() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = AlarmStore(context)
+        val scheduler = AlarmScheduler(context)
+        val id = store.newId()
+        try {
+            store.put(AlarmSpec(id, 6, 30, enabled = false, snoozeLimit = 1))
+            org.junit.Assert.assertTrue(scheduler.scheduleSnooze(id, 5))
+            org.junit.Assert.assertFalse(AlarmScheduler(context).scheduleSnooze(id, 5))
+            org.junit.Assert.assertEquals(1, AlarmStore(context).snoozeCount(id))
+            store.resetSnoozeCount(id)
+            org.junit.Assert.assertTrue(scheduler.scheduleSnooze(id, 5))
+        } finally {
+            scheduler.cancel(id)
+            store.resetSnoozeCount(id)
+            store.delete(id)
+        }
+    }
+
     @Test fun snoozeSurvivesReschedulingIncludingDisabledOneShot() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val store = AlarmStore(context)

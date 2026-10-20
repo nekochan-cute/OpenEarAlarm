@@ -29,6 +29,7 @@ class AlarmReceiver : BroadcastReceiver() {
         // Schedule the next occurrence first, before any audio initialization can fail.
         if (!snoozed) {
             try {
+                store.resetSnoozeCount(id)
                 if (alarm.daysMask == 0) store.put(alarm.copy(enabled = false))
                 else AlarmScheduler(context).update(alarm, preserveSnooze = true)
             } catch (e: Exception) { Log.e(TAG, "Failed to update recurrence", e) }

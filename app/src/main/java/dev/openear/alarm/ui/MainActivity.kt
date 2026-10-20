@@ -364,6 +364,7 @@ private fun AlarmEdit(
     var target by remember(alarm.id) { mutableFloatStateOf(alarm.targetVolumePercent.toFloat()) }
     var restore by remember(alarm.id) { mutableStateOf(alarm.restoreVolume) }
     var snooze by remember(alarm.id) { mutableFloatStateOf(alarm.snoozeMinutes.toFloat()) }
+    var snoozeLimit by remember(alarm.id) { mutableFloatStateOf(alarm.snoozeLimit.toFloat()) }
     var vibrate by remember(alarm.id) { mutableStateOf(alarm.vibrate) }
     var fade by remember(alarm.id) { mutableFloatStateOf(alarm.fadeInSeconds.toFloat()) }
     var autoStop by remember(alarm.id) { mutableFloatStateOf(alarm.autoStopMinutes.toFloat()) }
@@ -447,6 +448,10 @@ private fun AlarmEdit(
             Text("スヌーズ・通知", style = MaterialTheme.typography.titleMedium)
             Text("スヌーズ  ${snooze.toInt()}分")
             Slider(value = snooze, onValueChange = { snooze = it }, valueRange = 1f..60f, steps = 58)
+            Text(if (snoozeLimit < 1f) "スヌーズ回数  制限なし"
+                else "スヌーズ回数  ${snoozeLimit.toInt()}回")
+            Slider(value = snoozeLimit, onValueChange = { snoozeLimit = it },
+                valueRange = 0f..10f, steps = 9)
             Text(if (autoStop < 1f) "自動停止  なし" else "自動停止  ${autoStop.toInt()}分")
             Slider(value = autoStop, onValueChange = { autoStop = it },
                 valueRange = 0f..60f, steps = 59)
@@ -471,7 +476,8 @@ private fun AlarmEdit(
                     },
                     enabled = true, useAlarmVolume = useAlarm, autoAdjustVolume = autoAdjust,
                     targetVolumePercent = target.toInt(), restoreVolume = restore,
-                    snoozeMinutes = snooze.toInt(), vibrate = vibrate,
+                    snoozeMinutes = snooze.toInt(), snoozeLimit = snoozeLimit.toInt(),
+                    vibrate = vibrate,
                     fadeInSeconds = fade.toInt(), autoStopMinutes = autoStop.toInt(),
                     soundUri = soundUri))
             },

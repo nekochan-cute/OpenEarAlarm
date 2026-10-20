@@ -39,6 +39,7 @@ class AlarmStore(context: Context) {
                     targetVolumePercent = o.optInt("targetVolume", 70),
                     restoreVolume = o.optBoolean("restoreVolume", true),
                     snoozeMinutes = o.optInt("snoozeMinutes", 5),
+                    snoozeLimit = o.optInt("snoozeLimit", 3),
                     soundUri = o.optString("soundUri", "").takeIf { it.isNotEmpty() },
                     vibrate = o.optBoolean("vibrate", true),
                     fadeInSeconds = o.optInt("fadeInSeconds", 10),
@@ -72,6 +73,19 @@ class AlarmStore(context: Context) {
         check(prefs.edit().remove("snooze_$id").commit())
     }
 
+    fun snoozeCount(id: Int): Int = synchronized(storageLock) {
+        prefs.getInt("snooze_count_$id", 0)
+    }
+
+    fun setSnoozeCount(id: Int, count: Int) = synchronized(storageLock) {
+        require(count >= 0)
+        check(prefs.edit().putInt("snooze_count_$id", count).commit())
+    }
+
+    fun resetSnoozeCount(id: Int) = synchronized(storageLock) {
+        check(prefs.edit().remove("snooze_count_$id").commit())
+    }
+
     fun put(alarm: AlarmSpec) = synchronized(storageLock) {
         val alarms = all().filterNot { it.id == alarm.id } + alarm
         write(alarms)
@@ -89,7 +103,8 @@ class AlarmStore(context: Context) {
                 put("label", a.label); put("days", a.daysMask); put("enabled", a.enabled)
                 put("alarmVolume", a.useAlarmVolume); put("autoAdjust", a.autoAdjustVolume)
                 put("targetVolume", a.targetVolumePercent); put("restoreVolume", a.restoreVolume)
-                put("snoozeMinutes", a.snoozeMinutes); put("soundUri", a.soundUri ?: "")
+                put("snoozeMinutes", a.snoozeMinutes); put("snoozeLimit", a.snoozeLimit)
+                put("soundUri", a.soundUri ?: "")
                 put("vibrate", a.vibrate); put("fadeInSeconds", a.fadeInSeconds)
                 put("autoStopMinutes", a.autoStopMinutes)
                 a.absoluteTriggerMillis?.let { put("absoluteTriggerMillis", it) }

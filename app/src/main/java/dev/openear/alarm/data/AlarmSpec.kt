@@ -14,6 +14,8 @@ data class AlarmSpec(
     val targetVolumePercent: Int = 70,
     val restoreVolume: Boolean = true,
     val snoozeMinutes: Int = 5,
+    /** Number of snoozes allowed per normal alarm occurrence; 0 means unlimited. */
+    val snoozeLimit: Int = 3,
     val soundUri: String? = null,
     val vibrate: Boolean = true,
     val fadeInSeconds: Int = 10,
@@ -28,6 +30,7 @@ data class AlarmSpec(
         require(daysMask in 0..127)
         require(targetVolumePercent in 0..100)
         require(snoozeMinutes in 1..60)
+        require(snoozeLimit in 0..10)
         require(fadeInSeconds in 0..60)
         require(autoStopMinutes in 0..60)
         require(absoluteTriggerMillis == null || (absoluteTriggerMillis > 0 && daysMask == 0))

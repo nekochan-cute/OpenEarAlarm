@@ -342,7 +342,11 @@ class AlarmPlaybackService : Service() {
         if (snooze) {
             activeIds.forEach { id ->
                 val minutes = store.byId(id)?.snoozeMinutes ?: 5
-                try { AlarmScheduler(this).scheduleSnooze(id, minutes) }
+                try {
+                    if (!AlarmScheduler(this).scheduleSnooze(id, minutes)) {
+                        AlarmHistory.record(this, id, "スヌーズ回数の上限に到達")
+                    }
+                }
                 catch (e: Exception) {
                     Log.e(TAG, "Could not snooze $id", e)
                     AlarmHistory.record(this, id, "スヌーズの予約失敗")
@@ -439,7 +443,13 @@ class AlarmPlaybackService : Service() {
                 .setOngoing(true)
                 .setContentIntent(activity)
                 .setFullScreenIntent(activity, true)
-                .addAction(0, context.getString(R.string.alarm_snooze), action(context, 2, ACTION_SNOOZE))
+                .apply {
+                    val allowed = spec.snoozeLimit == 0 ||
+                        AlarmStore(context).snoozeCount(spec.id) < spec.snoozeLimit
+                    if (allowed) {
+                        addAction(0, context.getString(R.string.alarm_snooze), action(context, 2, ACTION_SNOOZE))
+                    }
+                }
                 .addAction(0, context.getString(R.string.alarm_stop), action(context, 3, ACTION_STOP))
                 .build()
         }
