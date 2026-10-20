@@ -50,6 +50,7 @@ class AlarmPlaybackService : Service() {
     private var preferredId: Int? = null
     private var playbackGain = 0f
     private var hasAudioFocus = true
+    private var triedPlaybackRecovery = false
     private val autoStop = Runnable { finishAlarm(snooze = false) }
     private val routingListener = AudioRouting.OnRoutingChangedListener { routeOutput() }
     private val devices = object : AudioDeviceCallback() {
@@ -178,6 +179,7 @@ class AlarmPlaybackService : Service() {
             AlarmHistory.record(this, spec.id, "音声再生不可・振動のみ")
             // Preserve the vibration / alarm screen and surface notification; never crash.
         } else {
+            player?.let { installPlaybackErrorHandler(it) }
             player?.addOnRoutingChangedListener(routingListener, handler)
             routeOutput()
             player?.start()
@@ -207,6 +209,59 @@ class AlarmPlaybackService : Service() {
             Log.w(TAG, "Could not open alarm sound $uri", e)
             candidate.release()
             null
+        }
+    }
+
+    /** Retry a decoder/output failure once using the offline built-in alarm tone.
+     * The alarm must keep vibrating and retain its ringing notification even if
+     * the second player also fails. All mutations occur on the service main thread.
+     */
+    private fun installPlaybackErrorHandler(candidate: MediaPlayer) {
+        candidate.setOnErrorListener { _, what, extra ->
+            Log.e(TAG, "MediaPlayer error what=$what extra=$extra")
+            handler.post {
+                if (player === candidate) recoverPlaybackWithBuiltInTone()
+            }
+            true
+        }
+    }
+
+    private fun recoverPlaybackWithBuiltInTone() {
+        val spec = currentSpec ?: return
+        val failed = player
+        runCatching { failed?.removeOnRoutingChangedListener(routingListener) }
+        runCatching { failed?.reset() }
+        runCatching { failed?.release() }
+        player = null
+        preferredId = null
+        if (triedPlaybackRecovery) {
+            AlarmHistory.record(this, spec.id, "代替アラーム音の再生にも失敗")
+            return
+        }
+        triedPlaybackRecovery = true
+        try {
+            val attributes = AudioAttributes.Builder()
+                .setUsage(if (spec.useAlarmVolume) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
+            val uri = Uri.fromFile(BundledTone.getOrCreate(createDeviceProtectedStorageContext()))
+            val recovered = createPlayer(uri, attributes)
+            if (recovered == null) {
+                AlarmHistory.record(this, spec.id, "代替アラーム音を読み込めません")
+                return
+            }
+            player = recovered
+            installPlaybackErrorHandler(recovered)
+            recovered.addOnRoutingChangedListener(routingListener, handler)
+            routeOutput()
+            recovered.start()
+            recovered.setVolume(playbackGain, playbackGain)
+            AlarmHistory.record(this, spec.id, "代替アラーム音で再生を復旧")
+        } catch (failure: Exception) {
+            Log.e(TAG, "Failed to recover alarm audio", failure)
+            AlarmHistory.record(this, spec.id, "再生復旧に失敗・振動と通知を継続")
+            runCatching { player?.release() }
+            player = null
         }
     }
 
@@ -263,7 +318,11 @@ class AlarmPlaybackService : Service() {
             activeIds.forEach { id ->
                 val minutes = store.byId(id)?.snoozeMinutes ?: 5
                 try { AlarmScheduler(this).scheduleSnooze(id, minutes) }
-                catch (e: Exception) { Log.e(TAG, "Could not snooze $id", e) }
+                catch (e: Exception) {
+                    Log.e(TAG, "Could not snooze $id", e)
+                    AlarmHistory.record(this, id, "スヌーズの予約失敗")
+                    postSnoozeFailure(this, id)
+                }
             }
         } else activeIds.forEach { AlarmScheduler(this).cancelSnooze(it) }
         activeIds.clear()
@@ -282,6 +341,7 @@ class AlarmPlaybackService : Service() {
         player?.release()
         player = null
         preferredId = null
+        triedPlaybackRecovery = false
         playbackGain = 0f
         hasAudioFocus = true
         vibrator.cancel()
@@ -357,6 +417,23 @@ class AlarmPlaybackService : Service() {
                 .addAction(0, context.getString(R.string.alarm_snooze), action(context, 2, ACTION_SNOOZE))
                 .addAction(0, context.getString(R.string.alarm_stop), action(context, 3, ACTION_STOP))
                 .build()
+        }
+
+        private fun postSnoozeFailure(context: Context, id: Int) {
+            ensureChannel(context)
+            try {
+                context.getSystemService(NotificationManager::class.java).notify(
+                    300_000 + id,
+                    NotificationCompat.Builder(context, CHANNEL_ID)
+                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                        .setContentTitle("スヌーズを設定できませんでした")
+                        .setContentText("アラームが停止しました。もう一度登録してください。")
+                        .setAutoCancel(true)
+                        .build()
+                )
+            } catch (failure: Exception) {
+                Log.e(TAG, "Could not show snooze failure", failure)
+            }
         }
 
         fun postLaunchFailure(context: Context, spec: AlarmSpec) {
