@@ -73,7 +73,7 @@ class AlarmPlaybackService : Service() {
                 val id = intent.getIntExtra(EXTRA_ALARM_ID, -1)
                 val spec = AlarmStore(this).byId(id)
                     ?: return START_NOT_STICKY.also { if (activeIds.isEmpty()) stopSelf() }
-                if (!activeIds.add(id)) return START_NOT_STICKY
+                if (!activeIds.add(id)) return START_REDELIVER_INTENT
                 // Android 15+ requires foreground state before obtaining audio focus.
                 val alreadyRinging = currentSpec != null
                 try {
@@ -98,7 +98,11 @@ class AlarmPlaybackService : Service() {
             ACTION_SNOOZE -> finishAlarm(snooze = true)
             else -> stopSelf()
         }
-        return START_NOT_STICKY
+        // If Android kills the process while the alarm is ringing, request that
+        // it redeliver the alarm-start intent. This is best effort only and
+        // does not override a user force-stop or OEM background restrictions.
+        return if (intent?.action == ACTION_START && activeIds.isNotEmpty())
+            START_REDELIVER_INTENT else START_NOT_STICKY
     }
 
     private fun promoteToForeground(spec: AlarmSpec) {
