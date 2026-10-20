@@ -17,6 +17,8 @@ data class AlarmSpec(
     val soundUri: String? = null,
     val vibrate: Boolean = true,
     val fadeInSeconds: Int = 10,
+    /** 0 = until explicitly stopped; otherwise minutes. */
+    val autoStopMinutes: Int = 15,
     /** Absolute one-shot instant for relative quick timers; absent for wall-clock alarms. */
     val absoluteTriggerMillis: Long? = null
 ) {
@@ -27,6 +29,7 @@ data class AlarmSpec(
         require(targetVolumePercent in 0..100)
         require(snoozeMinutes in 1..60)
         require(fadeInSeconds in 0..60)
+        require(autoStopMinutes in 0..60)
         require(absoluteTriggerMillis == null || (absoluteTriggerMillis > 0 && daysMask == 0))
     }
 }

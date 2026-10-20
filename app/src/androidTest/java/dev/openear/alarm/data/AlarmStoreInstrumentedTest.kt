@@ -15,11 +15,13 @@ class AlarmStoreInstrumentedTest {
         val store = AlarmStore(context)
         val id = store.newId()
         try {
-            store.put(AlarmSpec(id = id, hour = 8, minute = 30, label = "Direct Boot check"))
+            store.put(AlarmSpec(id = id, hour = 8, minute = 30, label = "Direct Boot check",
+                autoStopMinutes = 0))
             val deviceContext = context.createDeviceProtectedStorageContext()
             val raw = deviceContext.getSharedPreferences("alarms_v1", Context.MODE_PRIVATE)
                 .getString("items", "") ?: ""
             assertTrue("Alarms must be in device-protected storage", raw.contains("\"id\":$id"))
+            org.junit.Assert.assertEquals(0, AlarmStore(context).byId(id)?.autoStopMinutes)
         } finally {
             store.delete(id)
         }

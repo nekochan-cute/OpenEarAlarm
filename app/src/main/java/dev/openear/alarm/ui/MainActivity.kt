@@ -366,6 +366,7 @@ private fun AlarmEdit(
     var snooze by remember(alarm.id) { mutableFloatStateOf(alarm.snoozeMinutes.toFloat()) }
     var vibrate by remember(alarm.id) { mutableStateOf(alarm.vibrate) }
     var fade by remember(alarm.id) { mutableFloatStateOf(alarm.fadeInSeconds.toFloat()) }
+    var autoStop by remember(alarm.id) { mutableFloatStateOf(alarm.autoStopMinutes.toFloat()) }
     var soundUri by remember(alarm.id) { mutableStateOf(alarm.soundUri) }
     var showDelete by remember { mutableStateOf(false) }
 
@@ -446,6 +447,9 @@ private fun AlarmEdit(
             Text("スヌーズ・通知", style = MaterialTheme.typography.titleMedium)
             Text("スヌーズ  ${snooze.toInt()}分")
             Slider(value = snooze, onValueChange = { snooze = it }, valueRange = 1f..60f, steps = 58)
+            Text(if (autoStop < 1f) "自動停止  なし" else "自動停止  ${autoStop.toInt()}分")
+            Slider(value = autoStop, onValueChange = { autoStop = it },
+                valueRange = 0f..60f, steps = 59)
             SettingSwitch("バイブレーション", "音声と同時に振動します", vibrate) { vibrate = it }
             if (!isNew) {
                 Spacer(Modifier.height(8.dp))
@@ -468,7 +472,8 @@ private fun AlarmEdit(
                     enabled = true, useAlarmVolume = useAlarm, autoAdjustVolume = autoAdjust,
                     targetVolumePercent = target.toInt(), restoreVolume = restore,
                     snoozeMinutes = snooze.toInt(), vibrate = vibrate,
-                    fadeInSeconds = fade.toInt(), soundUri = soundUri))
+                    fadeInSeconds = fade.toInt(), autoStopMinutes = autoStop.toInt(),
+                    soundUri = soundUri))
             },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp).height(52.dp)
         ) { Icon(Icons.Rounded.Check, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("保存") }

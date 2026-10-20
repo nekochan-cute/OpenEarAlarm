@@ -42,6 +42,7 @@ class AlarmStore(context: Context) {
                     soundUri = o.optString("soundUri", "").takeIf { it.isNotEmpty() },
                     vibrate = o.optBoolean("vibrate", true),
                     fadeInSeconds = o.optInt("fadeInSeconds", 10),
+                    autoStopMinutes = o.optInt("autoStopMinutes", 15),
                     absoluteTriggerMillis = if (o.has("absoluteTriggerMillis")) o.getLong("absoluteTriggerMillis") else null
                 )
             } catch (_: Exception) { null }
@@ -90,6 +91,7 @@ class AlarmStore(context: Context) {
                 put("targetVolume", a.targetVolumePercent); put("restoreVolume", a.restoreVolume)
                 put("snoozeMinutes", a.snoozeMinutes); put("soundUri", a.soundUri ?: "")
                 put("vibrate", a.vibrate); put("fadeInSeconds", a.fadeInSeconds)
+                put("autoStopMinutes", a.autoStopMinutes)
                 a.absoluteTriggerMillis?.let { put("absoluteTriggerMillis", it) }
             })
         }

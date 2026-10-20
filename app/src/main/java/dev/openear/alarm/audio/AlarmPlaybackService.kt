@@ -214,7 +214,9 @@ class AlarmPlaybackService : Service() {
                 vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 600, 400), 0))
             } catch (e: RuntimeException) { Log.w(TAG, "Vibration unavailable", e) }
         }
-        handler.postDelayed(autoStop, 15 * 60_000L)
+        if (spec.autoStopMinutes > 0) {
+            handler.postDelayed(autoStop, spec.autoStopMinutes * 60_000L)
+        }
     }
 
     private fun createPlayer(uri: Uri, attr: AudioAttributes): MediaPlayer? {
