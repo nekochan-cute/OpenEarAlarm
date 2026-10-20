@@ -290,33 +290,47 @@ class AlarmPlaybackService : Service() {
         }
     }
 
-    /** Preference is advisory on Android; actual routing remains under the OS audio policy. */
+    /** Android audio routing is advisory. Device detection failures must never
+     * stop a playing alarm or its vibration fallback.
+     */
     private fun routeOutput() {
         val p = player ?: return
-        val outputs = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).toList()
-        val headphones = outputs.firstOrNull { device ->
-            device.type in setOf(
-                AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-                AudioDeviceInfo.TYPE_WIRED_HEADSET,
-                AudioDeviceInfo.TYPE_USB_HEADSET,
-                AudioDeviceInfo.TYPE_USB_DEVICE,
-                AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
-                AudioDeviceInfo.TYPE_BLE_HEADSET
-            )
-        }
-        val chosen = headphones ?: outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
-        if (chosen != null && chosen.id != preferredId) {
-            val accepted = p.setPreferredDevice(chosen)
-            if (accepted) preferredId = chosen.id
-            else Log.w(TAG, "Preferred device rejected: ${chosen.type}")
-        }
-        // Do not claim a guarantee from setPreferredDevice; routing can still change asynchronously.
-        handler.postDelayed({
-            val routed = player?.routedDevice
-            if (routed != null && chosen != null && routed.id != chosen.id) {
-                Log.w(TAG, "Actual route differs: requested=${chosen.type}, actual=${routed.type}")
+        try {
+            val outputs = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).toList()
+            val headphones = outputs.firstOrNull { device ->
+                device.type in setOf(
+                    AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                    AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                    AudioDeviceInfo.TYPE_USB_HEADSET,
+                    AudioDeviceInfo.TYPE_USB_DEVICE,
+                    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                    AudioDeviceInfo.TYPE_BLE_HEADSET
+                )
             }
-        }, 400L)
+            val chosen = headphones
+                ?: outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+            if (chosen != null && chosen.id != preferredId) {
+                val accepted = p.setPreferredDevice(chosen)
+                if (accepted) preferredId = chosen.id
+                else Log.w(TAG, "Preferred device rejected: ${chosen.type}")
+            }
+            handler.postDelayed({
+                try {
+                    if (player === p) {
+                        val routed = p.routedDevice
+                        if (routed != null && chosen != null && routed.id != chosen.id) {
+                            Log.w(TAG,
+                                "Actual route differs: requested=${chosen.type}, actual=${routed.type}")
+                        }
+                    }
+                } catch (e: RuntimeException) {
+                    Log.w(TAG, "Unable to inspect active alarm audio route", e)
+                }
+            }, 400L)
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "Audio routing unavailable; continuing wake-up playback", e)
+            AlarmHistory.record(this, currentSpec?.id ?: -1, "音声出力先の確認に失敗")
+        }
     }
 
     private fun beginFadeIn(seconds: Int) {
@@ -367,14 +381,21 @@ class AlarmPlaybackService : Service() {
         try { audio.unregisterAudioDeviceCallback(devices) } catch (_: Exception) {}
         try { player?.removeOnRoutingChangedListener(routingListener) } catch (_: Exception) {}
         try { player?.stop() } catch (_: Exception) {}
-        player?.release()
+        try { player?.release() } catch (e: RuntimeException) {
+            Log.w(TAG, "Player release failed", e)
+        }
         player = null
         preferredId = null
         triedPlaybackRecovery = false
         playbackGain = 0f
         hasAudioFocus = true
-        vibrator.cancel()
-        focus?.let { audio.abandonAudioFocusRequest(it) }
+        try { vibrator.cancel() } catch (e: RuntimeException) {
+            Log.w(TAG, "Could not cancel vibrator", e)
+        }
+        focus?.let {
+            try { audio.abandonAudioFocusRequest(it) }
+            catch (e: RuntimeException) { Log.w(TAG, "Could not abandon audio focus", e) }
+        }
         focus = null
         val stream = modifiedStream
         if (stream != null && currentSpec?.restoreVolume == true) {
@@ -383,7 +404,7 @@ class AlarmPlaybackService : Service() {
                 if (audio.getStreamVolume(stream) == appliedVolume) {
                     previousVolume?.let { audio.setStreamVolume(stream, it, 0) }
                 }
-            } catch (e: SecurityException) { Log.w(TAG, "Restore volume restricted", e) }
+            } catch (e: RuntimeException) { Log.w(TAG, "Restore volume restricted", e) }
         }
         modifiedStream = null
         previousVolume = null
