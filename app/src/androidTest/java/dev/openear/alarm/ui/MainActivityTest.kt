@@ -53,6 +53,27 @@ class MainActivityTest {
         saveScreenshot("openear-editor.png")
     }
 
+    @Test fun pendingSnoozeOfDisabledOneShotStillAppearsAsNextAlarm() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = dev.openear.alarm.data.AlarmStore(context)
+        val scheduler = dev.openear.alarm.scheduler.AlarmScheduler(context)
+        val id = store.newId()
+        try {
+            store.put(dev.openear.alarm.data.AlarmSpec(
+                id = id, hour = 6, minute = 30, label = "One-shot snooze test",
+                enabled = false
+            ))
+            scheduler.scheduleSnooze(id, 5)
+            rule.activityRule.scenario.recreate()
+            rule.onNodeWithText("One-shot snooze test").assertIsDisplayed()
+            rule.onNodeWithText("スヌーズ中", substring = true).assertIsDisplayed()
+            rule.onNodeWithText("次のアラーム").assertIsDisplayed()
+        } finally {
+            scheduler.cancel(id)
+            store.delete(id)
+        }
+    }
+
     @Test fun createsAndDeletesAlarmThroughUi() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val store = dev.openear.alarm.data.AlarmStore(context)

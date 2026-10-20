@@ -227,12 +227,21 @@ private fun AlarmHome(
     val context = LocalContext.current
     val notificationBlocked = Build.VERSION.SDK_INT >= 33 &&
         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-    val next = remember(alarms.toList()) {
-        val now = Instant.now()
-        alarms.filter { it.enabled }.mapNotNull { alarm ->
-            runCatching { alarm to AlarmMath.nextTrigger(alarm, now, ZoneId.systemDefault()) }.getOrNull()
-        }.minByOrNull { it.second }?.first
-    }
+    val now = Instant.now()
+    val stored = remember(context) { AlarmStore(context) }
+    val activeSnoozes = alarms.mapNotNull { alarm ->
+        stored.snoozeUntil(alarm.id)?.takeIf { it > now.toEpochMilli() }
+            ?.let { alarm.id to Instant.ofEpochMilli(it) }
+    }.toMap()
+    val nextTrigger = alarms.flatMap { alarm ->
+        buildList {
+            if (alarm.enabled) {
+                runCatching { AlarmMath.nextTrigger(alarm, now, ZoneId.systemDefault()) }
+                    .getOrNull()?.let { add(it) }
+            }
+            activeSnoozes[alarm.id]?.let { add(it) }
+        }
+    }.minOrNull()
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 106.dp),
@@ -248,8 +257,8 @@ private fun AlarmHome(
                 }
             }
         }
-        if (next != null) item {
-            val instant = AlarmMath.nextTrigger(next, Instant.now(), ZoneId.systemDefault())
+        if (nextTrigger != null) item {
+            val instant = nextTrigger
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                 Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Text("次のアラーム", style = MaterialTheme.typography.labelLarge)
@@ -303,8 +312,16 @@ private fun AlarmHome(
                         Text(alarm.label.ifBlank { repeatLabel(alarm.daysMask) },
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (alarm.label.isNotBlank()) Text(repeatLabel(alarm.daysMask), style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val pendingSnooze = activeSnoozes[alarm.id]
+                        if (pendingSnooze != null) {
+                            Text("スヌーズ中 · " + pendingSnooze.atZone(ZoneId.systemDefault())
+                                .format(DateTimeFormatter.ofPattern("HH:mm")),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary)
+                        } else if (alarm.label.isNotBlank()) {
+                            Text(repeatLabel(alarm.daysMask), style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                     Switch(checked = alarm.enabled, onCheckedChange = { onToggle(alarm) },
                         modifier = Modifier.semantics { contentDescription = "${alarm.hour}時${alarm.minute}分のアラーム切替" })
