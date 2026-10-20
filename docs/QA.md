@@ -30,6 +30,6 @@ CI is necessary but not sufficient for alarm correctness. This project is **not 
 
 ## Automated gates
 
-GitHub Actions runs APK compilation, JVM tests, Android Lint, Compose UI tests, concurrent Store write tests, persisted snooze and exact-alarm delivery checks in Android 9 and Android 15 emulators. These tests check software state and MediaPlayer start; they do **not** measure sound emitted by headphone or speaker hardware.
+GitHub Actions runs APK compilation, JVM tests, Android Lint, Compose UI tests, concurrent Store write tests, persisted snooze and exact-alarm delivery checks in Android 9, Android 15 and Android 16 emulators. These tests check software state and MediaPlayer start; they do **not** measure sound emitted by headphone or speaker hardware.
 
 The release gate remains **blocked** pending actual device test evidence for the items above.

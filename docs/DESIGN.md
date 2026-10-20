@@ -41,7 +41,7 @@ Device routing is advisory under Android's audio policy. `MediaPlayer.setPreferr
 ## Current risks / blockers before distribution
 
 1. GitHub Actions now builds a debug APK and runs unit tests and Android Lint. Emulator instrumentation tests are configured; actual device validation remains pending.
-2. **Direct Boot** storage and receivers are implemented but before-first-unlock ringing is not hardware-verified. Multi-step snooze limits and per-output-device target volume are not implemented; the diagnostics execution-history panel is implemented. Android cannot fire alarms while powered off or after a user force-stop.
+2. **Direct Boot** storage and receivers are implemented but before-first-unlock ringing is not hardware-verified. Per-alarm snooze count limits and automatic-stop duration are implemented, but per-output-device target volume is not implemented; the diagnostics execution-history panel is implemented. Android cannot fire alarms while powered off or after a user force-stop.
 3. The first version uses `SharedPreferences` as a compact crash-resilient synchronous store, not the planned Room/DataStore architecture. Corrupt entries are skipped; add backup/import and migration tests before shipping.
 4. Android 14+ full-screen intent may be disabled by policy/user. Android 13+ notifications may be denied. A non-notifying foreground service alone does not offer a dependable waking UX.
 5. Android's media playback foreground-service and audio-focus limits must be checked on actual Android 15/16 devices before declaring wake-up reliability.
