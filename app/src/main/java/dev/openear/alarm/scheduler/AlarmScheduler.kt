@@ -20,19 +20,24 @@ class AlarmScheduler(private val context: Context) {
     private val store = AlarmStore(context)
 
     fun update(alarm: AlarmSpec, preserveSnooze: Boolean = false) {
-        cancelRegular(alarm.id)
+        if (!alarm.enabled) {
+            cancelRegular(alarm.id)
+        } else {
+            // Validate the new deadline first. A bad editor value (notably an
+            // expired quick timer) must not cancel the existing OS registration.
+            val trigger = AlarmMath.nextTrigger(alarm, Instant.now(), ZoneId.systemDefault())
+            val event = eventIntent(alarm.id, snoozed = false, trigger.toEpochMilli())
+            val openApp = PendingIntent.getActivity(
+                context, 0, Intent(context, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            // Reusing the same PendingIntent identity updates an existing alarm.
+            manager.setAlarmClock(AlarmManager.AlarmClockInfo(trigger.toEpochMilli(), openApp), event)
+        }
         if (!preserveSnooze) {
             cancelSnooze(alarm.id)
             store.resetSnoozeCount(alarm.id)
         }
-        if (!alarm.enabled) return
-        val trigger = AlarmMath.nextTrigger(alarm, Instant.now(), ZoneId.systemDefault())
-        val event = eventIntent(alarm.id, snoozed = false, trigger.toEpochMilli())
-        val openApp = PendingIntent.getActivity(
-            context, 0, Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        manager.setAlarmClock(AlarmManager.AlarmClockInfo(trigger.toEpochMilli(), openApp), event)
     }
 
     fun scheduleSnooze(id: Int, minutes: Int): Boolean {

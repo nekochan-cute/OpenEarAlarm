@@ -86,6 +86,36 @@ class AlarmSchedulerInstrumentedTest {
         }
     }
 
+    @Test fun invalidReplacementDoesNotCancelExistingRegistration() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = AlarmStore(context)
+        val scheduler = AlarmScheduler(context)
+        val id = store.newId()
+        fun pending() = PendingIntent.getBroadcast(
+            context, id * 2,
+            Intent(context, AlarmReceiver::class.java).apply {
+                action = AlarmReceiver.ACTION_FIRE
+                data = Uri.parse("openear://alarm/${id * 2}")
+            },
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        )
+        try {
+            val valid = AlarmSpec(id = id, hour = 0, minute = 0,
+                absoluteTriggerMillis = System.currentTimeMillis() + 120_000L)
+            store.put(valid)
+            scheduler.update(valid)
+            assertNotNull("Existing alarm must be registered", pending())
+            val bad = valid.copy(absoluteTriggerMillis = System.currentTimeMillis() - 1000L)
+            org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+                scheduler.update(bad)
+            }
+            assertNotNull("Invalid replacement must not erase existing scheduled alarm", pending())
+        } finally {
+            scheduler.cancel(id)
+            store.delete(id)
+        }
+    }
+
     @Test fun registersAndCancelsExactAlarmPendingIntent() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val store = AlarmStore(context)
