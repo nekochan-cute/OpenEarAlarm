@@ -370,20 +370,34 @@ private fun AlarmEdit(
             OutlinedTextField(value = label, onValueChange = { label = it.take(60) }, label = { Text("アラーム名（任意）") },
                 singleLine = true, modifier = Modifier.fillMaxWidth())
             Text("繰り返し", style = MaterialTheme.typography.titleMedium)
-            // Exactly one horizontal row at phone widths: a wrapped Sunday looked
-            // like a separate group and made repeat schedules hard to scan.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                listOf("月", "火", "水", "木", "金", "土", "日").forEachIndexed { index, day ->
-                    val bit = 1 shl index
-                    FilterChip(
-                        selected = mask and bit != 0,
-                        onClick = { mask = mask xor bit },
-                        label = { Text(day, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) },
-                        modifier = Modifier.weight(1f)
-                    )
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val days = listOf("月", "火", "水", "木", "金", "土", "日")
+                // Seven Material chips cannot remain touch-accessible on narrow screens.
+                // Use four plus three instead of clipping the rightmost Sunday chip.
+                val compact = maxWidth < 340.dp
+                val lines = if (compact) listOf(days.take(4), days.drop(4)) else listOf(days)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    lines.forEach { line ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            line.forEach { day ->
+                                val index = days.indexOf(day)
+                                val bit = 1 shl index
+                                FilterChip(
+                                    selected = mask and bit != 0,
+                                    onClick = { mask = mask xor bit },
+                                    label = {
+                                        Text(day, modifier = Modifier.fillMaxWidth(),
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            if (compact) repeat(4 - line.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
                 }
             }
             Text(if (mask == 0) "曜日を選ばない場合は1回のみ鳴ります" else repeatLabel(mask),
