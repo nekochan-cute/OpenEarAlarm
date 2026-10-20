@@ -21,7 +21,10 @@ class AlarmScheduler(private val context: Context) {
 
     fun update(alarm: AlarmSpec, preserveSnooze: Boolean = false) {
         cancelRegular(alarm.id)
-        if (!preserveSnooze) cancelSnooze(alarm.id)
+        if (!preserveSnooze) {
+            cancelSnooze(alarm.id)
+            store.resetSnoozeCount(alarm.id)
+        }
         if (!alarm.enabled) return
         val trigger = AlarmMath.nextTrigger(alarm, Instant.now(), ZoneId.systemDefault())
         val event = eventIntent(alarm.id, snoozed = false, trigger.toEpochMilli())
@@ -73,6 +76,7 @@ class AlarmScheduler(private val context: Context) {
     fun cancel(id: Int) {
         cancelRegular(id)
         cancelSnooze(id)
+        store.resetSnoozeCount(id)
     }
 
     fun cancelSnooze(id: Int) {
