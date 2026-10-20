@@ -4,6 +4,7 @@ package dev.openear.alarm.ui
 import android.graphics.Bitmap
 import android.content.ContentValues
 import android.os.Environment
+import android.os.Build
 import android.provider.MediaStore
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
@@ -76,6 +77,8 @@ class MainActivityTest {
 
     /** Capture Compose pixels directly: avoids unrelated emulator Launcher ANR dialogs. */
     private fun saveScreenshot(name: String) {
+        // Android 9 lacks scoped MediaStore screenshots; UI assertions still run.
+        if (Build.VERSION.SDK_INT < 29) return
         val image = rule.onRoot().captureToImage().asAndroidBitmap()
         val resolver = InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
         val values = ContentValues().apply {

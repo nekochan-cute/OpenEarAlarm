@@ -6,7 +6,9 @@ gradle --no-daemon :app:connectedDebugAndroidTest || status=$?
 
 # UI images come from Compose pixel capture inside instrumentation tests.
 # Save them in MediaStore so they survive the test runner uninstalling its APK.
-adb pull /sdcard/Download/OpenEarAlarm screenshots/compose || status=1
+if [[ "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" -ge 29 ]]; then
+  adb pull /sdcard/Download/OpenEarAlarm screenshots/compose || status=1
+fi
 
 # Independently check a cold start, but do not use adb screencap as UI evidence
 # because emulator Pixel Launcher can display unrelated ANR dialogs.
