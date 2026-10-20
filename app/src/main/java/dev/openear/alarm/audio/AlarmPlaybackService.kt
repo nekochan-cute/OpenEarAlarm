@@ -124,7 +124,13 @@ class AlarmPlaybackService : Service() {
             .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
             .build()
 
-        audio.registerAudioDeviceCallback(devices, handler)
+        try {
+            audio.registerAudioDeviceCallback(devices, handler)
+        } catch (failure: RuntimeException) {
+            // Device callbacks improve routing diagnostics; they are not a
+            // prerequisite for a wake-up alarm to emit sound.
+            Log.w(TAG, "Device callback unavailable; continuing alarm", failure)
+        }
         val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
             .setAudioAttributes(attributes)
             .setOnAudioFocusChangeListener { change ->
@@ -143,7 +149,12 @@ class AlarmPlaybackService : Service() {
             }
             .build()
         focus = request
-        val focusResult = audio.requestAudioFocus(request)
+        val focusResult = try {
+            audio.requestAudioFocus(request)
+        } catch (failure: RuntimeException) {
+            Log.w(TAG, "Audio focus request failed; trying alarm playback anyway", failure)
+            AudioManager.AUDIOFOCUS_REQUEST_FAILED
+        }
         // When transient audio focus is denied, attempt playback anyway.
         // System DND and routing policies still control final audibility.
         hasAudioFocus = true
@@ -162,8 +173,8 @@ class AlarmPlaybackService : Service() {
                     previousVolume = old
                     appliedVolume = target
                 }
-            } catch (e: SecurityException) {
-                Log.w(TAG, "Audio volume change blocked by system policy", e)
+            } catch (e: RuntimeException) {
+                Log.w(TAG, "Audio volume change blocked or unsupported; continuing playback", e)
             }
         }
 
@@ -182,9 +193,17 @@ class AlarmPlaybackService : Service() {
             player?.let { installPlaybackErrorHandler(it) }
             player?.addOnRoutingChangedListener(routingListener, handler)
             routeOutput()
-            player?.start()
-            AlarmHistory.record(this, spec.id, "音声再生を開始")
-            beginFadeIn(spec.fadeInSeconds)
+            try {
+                player?.start()
+            } catch (failure: RuntimeException) {
+                // Synchronous start errors do not invoke OnErrorListener.
+                Log.e(TAG, "Starting the chosen audio player failed", failure)
+                recoverPlaybackWithBuiltInTone()
+            }
+            if (player != null) {
+                AlarmHistory.record(this, spec.id, "音声再生を開始")
+                beginFadeIn(spec.fadeInSeconds)
+            }
         }
         if (spec.vibrate) {
             try {
