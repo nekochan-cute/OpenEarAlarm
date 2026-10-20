@@ -74,15 +74,23 @@ class AlarmPlaybackService : Service() {
                     ?: return START_NOT_STICKY.also { if (activeIds.isEmpty()) stopSelf() }
                 if (!activeIds.add(id)) return START_NOT_STICKY
                 // Android 15+ requires foreground state before obtaining audio focus.
+                val alreadyRinging = currentSpec != null
                 try {
                     promoteToForeground(spec)
-                    if (currentSpec == null) startPlayback(spec)
+                    if (!alreadyRinging) startPlayback(spec)
                     else updateNotification()
                 } catch (e: Exception) {
                     Log.e(TAG, "Alarm start failed", e)
                     AlarmHistory.record(this, id, "鳴動開始失敗")
                     postLaunchFailure(this, spec)
-                    finishAlarm(snooze = false)
+                    if (alreadyRinging) {
+                        // A broken second alarm must not stop an alarm that is already
+                        // audible. Restore the original notification and keep playing.
+                        activeIds.remove(id)
+                        runCatching { updateNotification() }
+                    } else {
+                        finishAlarm(snooze = false)
+                    }
                 }
             }
             ACTION_STOP -> finishAlarm(snooze = false)
