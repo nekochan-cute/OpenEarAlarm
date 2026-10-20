@@ -11,7 +11,7 @@ Apple's HIG principles: https://developer.apple.com/design/human-interface-guide
 - **Alarms**: next alarm summary, active alarms, disabled alarms, edit by tapping a row, add button.
 - **Edit alarm**: time picker, repeat days, label, A/B independent controls, optional volume target/restore, ringtone, fade-in, snooze, vibration. Save returns to list. Deletion requires confirmation and offers undo.
 - **Settings**: default A and B configuration for future alarms (no surprise mutations to existing alarms).
-- **Diagnostics**: exact alarm, notification, full-screen capability, current output devices, contextual request for notification permission.
+- **Diagnostics**: exact alarm, notification, full-screen capability, current output devices, contextual request for notification permission, most recent 10 of up to 40 locally recorded execution events.
 - **Ringing**: primary snooze and stop buttons, each sized for large touch targets, available from lock screen when OS permission permits.
 
 ## Experience and state details
@@ -41,11 +41,11 @@ Device routing is advisory under Android's audio policy. `MediaPlayer.setPreferr
 ## Current risks / blockers before distribution
 
 1. GitHub Actions now builds a debug APK and runs unit tests and Android Lint. Emulator instrumentation tests are configured; actual device validation remains pending.
-2. **Direct Boot** storage and receivers are implemented but before-first-unlock ringing is not hardware-verified. Multi-step snooze policies, per-output-device target volume and an execution-history panel are deferred. Android cannot fire alarms while powered off or after a user force-stop.
+2. **Direct Boot** storage and receivers are implemented but before-first-unlock ringing is not hardware-verified. Multi-step snooze limits and per-output-device target volume are not implemented; the diagnostics execution-history panel is implemented. Android cannot fire alarms while powered off or after a user force-stop.
 3. The first version uses `SharedPreferences` as a compact crash-resilient synchronous store, not the planned Room/DataStore architecture. Corrupt entries are skipped; add backup/import and migration tests before shipping.
 4. Android 14+ full-screen intent may be disabled by policy/user. Android 13+ notifications may be denied. A non-notifying foreground service alone does not offer a dependable waking UX.
 5. Android's media playback foreground-service and audio-focus limits must be checked on actual Android 15/16 devices before declaring wake-up reliability.
-6. A production app must add alarms-overlapping behavior, device routing end-to-end tests, force-stop/Doze/reboot tests, and explain battery policy restrictions before shipping.
+6. Several simultaneous alarms share a single notification/player; the second-alarm startup failure is isolated. Device routing end-to-end, force-stop/Doze/reboot, and battery-policy behavior still require physical device testing. Refer to [QA.md](QA.md).
 
 ## Review gate
 
@@ -60,6 +60,6 @@ Device routing is advisory under Android's audio policy. `MediaPlayer.setPreferr
 | RTL | Partial | Compose relative padding; Japanese-only UI strings |
 | Offline & privacy | Implemented | No internet permission, SDKs or trackers |
 | Scheduling correctness | Tested | GitHub Actions Gradle JVM tests pass |
-| Device playback reliability | Unknown | Requires actual devices |
+| Device playback reliability | Partial | Android 9/15 emulators verify scheduled delivery and MediaPlayer start, not audible hardware playback |
 
 Current distribution decision: **not ready for release**. This is an early implementation, not a validated replacement for a critical wake-up alarm.
