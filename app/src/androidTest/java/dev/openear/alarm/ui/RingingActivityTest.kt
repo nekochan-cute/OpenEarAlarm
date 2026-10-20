@@ -2,7 +2,6 @@
 package dev.openear.alarm.ui
 
 import android.content.Intent
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
