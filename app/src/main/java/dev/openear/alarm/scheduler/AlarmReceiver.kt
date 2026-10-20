@@ -30,7 +30,7 @@ class AlarmReceiver : BroadcastReceiver() {
         if (!snoozed) {
             try {
                 if (alarm.daysMask == 0) store.put(alarm.copy(enabled = false))
-                else AlarmScheduler(context).update(alarm)
+                else AlarmScheduler(context).update(alarm, preserveSnooze = true)
             } catch (e: Exception) { Log.e(TAG, "Failed to update recurrence", e) }
         }
         AlarmHistory.record(context, id, if (snoozed) "スヌーズ時刻に到達" else "アラーム時刻に到達")

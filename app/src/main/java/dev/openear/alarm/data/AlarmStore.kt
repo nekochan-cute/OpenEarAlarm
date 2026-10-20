@@ -7,6 +7,11 @@ import org.json.JSONObject
 
 /** Small synchronous store: commit before scheduling so a receiver sees durable state. */
 class AlarmStore(context: Context) {
+    companion object {
+        // AlarmReceiver, AlarmService and UI use different instances. An instance
+        // monitor does not protect their shared JSON read-modify-write transactions.
+        private val storageLock = Any()
+    }
     // Direct Boot: schedules must be readable before the first unlock after reboot.
     private val deviceContext = context.createDeviceProtectedStorageContext()
     private val prefs = run {
@@ -20,8 +25,7 @@ class AlarmStore(context: Context) {
         deviceContext.getSharedPreferences("alarms_v1", Context.MODE_PRIVATE)
     }
 
-    @Synchronized
-    fun all(): List<AlarmSpec> = try {
+    fun all(): List<AlarmSpec> = synchronized(storageLock) { try {
         val raw = JSONArray(prefs.getString("items", "[]") ?: "[]")
         (0 until raw.length()).mapNotNull { index ->
             try {
@@ -42,45 +46,40 @@ class AlarmStore(context: Context) {
                 )
             } catch (_: Exception) { null }
         }
-    } catch (_: Exception) { emptyList() }
+    } catch (_: Exception) { emptyList() } }
 
-    @Synchronized
     fun byId(id: Int): AlarmSpec? = all().firstOrNull { it.id == id }
 
-    @Synchronized
-    fun newId(): Int {
+    fun newId(): Int = synchronized(storageLock) {
         val next = prefs.getInt("next_id", 1)
         require(next in 1..999_999) { "Alarm ID space exhausted" }
         check(prefs.edit().putInt("next_id", next + 1).commit())
-        return next
+        next
     }
 
     /** Snooze deadlines live in device-protected storage to survive locked reboots. */
-    @Synchronized
-    fun snoozeUntil(id: Int): Long? =
+    fun snoozeUntil(id: Int): Long? = synchronized(storageLock) {
         prefs.getLong("snooze_$id", 0L).takeIf { it > 0L }
+    }
 
-    @Synchronized
-    fun setSnoozeUntil(id: Int, whenMillis: Long) {
+    fun setSnoozeUntil(id: Int, whenMillis: Long) = synchronized(storageLock) {
         require(whenMillis > 0L)
         check(prefs.edit().putLong("snooze_$id", whenMillis).commit())
     }
 
-    @Synchronized
-    fun clearSnooze(id: Int) {
+    fun clearSnooze(id: Int) = synchronized(storageLock) {
         check(prefs.edit().remove("snooze_$id").commit())
     }
 
-    @Synchronized
-    fun put(alarm: AlarmSpec) {
+    fun put(alarm: AlarmSpec) = synchronized(storageLock) {
         val alarms = all().filterNot { it.id == alarm.id } + alarm
         write(alarms)
     }
 
-    @Synchronized
-    fun delete(id: Int) = write(all().filterNot { it.id == id })
+    fun delete(id: Int) = synchronized(storageLock) {
+        write(all().filterNot { it.id == id })
+    }
 
-    @Synchronized
     private fun write(alarms: List<AlarmSpec>) {
         val json = JSONArray()
         alarms.forEach { a ->

@@ -45,6 +45,28 @@ class AlarmSchedulerInstrumentedTest {
         }
     }
 
+    @Test fun reschedulingRepeatingAlarmDoesNotDiscardPendingSnooze() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = AlarmStore(context)
+        val scheduler = AlarmScheduler(context)
+        val id = store.newId()
+        val spec = AlarmSpec(id = id, hour = 7, minute = 0, daysMask = 127)
+        try {
+            store.put(spec)
+            scheduler.update(spec)
+            scheduler.scheduleSnooze(id, 5)
+            val previous = store.snoozeUntil(id)
+            assertNotNull(previous)
+            scheduler.update(spec, preserveSnooze = true)
+            org.junit.Assert.assertEquals(previous, store.snoozeUntil(id))
+            scheduler.rescheduleAll()
+            org.junit.Assert.assertEquals(previous, store.snoozeUntil(id))
+        } finally {
+            scheduler.cancel(id)
+            store.delete(id)
+        }
+    }
+
     @Test fun registersAndCancelsExactAlarmPendingIntent() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val store = AlarmStore(context)

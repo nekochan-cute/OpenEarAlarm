@@ -19,8 +19,9 @@ class AlarmScheduler(private val context: Context) {
     private val manager = context.getSystemService(AlarmManager::class.java)
     private val store = AlarmStore(context)
 
-    fun update(alarm: AlarmSpec) {
-        cancel(alarm.id)
+    fun update(alarm: AlarmSpec, preserveSnooze: Boolean = false) {
+        cancelRegular(alarm.id)
+        if (!preserveSnooze) cancelSnooze(alarm.id)
         if (!alarm.enabled) return
         val trigger = AlarmMath.nextTrigger(alarm, Instant.now(), ZoneId.systemDefault())
         val event = eventIntent(alarm.id, snoozed = false, trigger.toEpochMilli())
@@ -52,13 +53,15 @@ class AlarmScheduler(private val context: Context) {
         }
     }
 
+    private fun cancelRegular(id: Int) {
+        val intent = eventIntent(id, false, 0L)
+        manager.cancel(intent)
+        intent.cancel()
+    }
+
     fun cancel(id: Int) {
-        for (snoozed in listOf(false, true)) {
-            val intent = eventIntent(id, snoozed, 0L)
-            manager.cancel(intent)
-            intent.cancel()
-        }
-        store.clearSnooze(id)
+        cancelRegular(id)
+        cancelSnooze(id)
     }
 
     fun cancelSnooze(id: Int) {
@@ -76,8 +79,9 @@ class AlarmScheduler(private val context: Context) {
                 val snoozeAt = store.snoozeUntil(alarm.id)
                 if (alarm.enabled && alarm.absoluteTriggerMillis != null && alarm.absoluteTriggerMillis <= now) {
                     store.put(alarm.copy(enabled = false))
-                    cancel(alarm.id)
-                } else if (alarm.enabled) update(alarm) else cancel(alarm.id)
+                    cancelRegular(alarm.id)
+                } else if (alarm.enabled) update(alarm, preserveSnooze = true)
+                else cancelRegular(alarm.id)
 
                 // A one-shot alarm may already be disabled after firing,
                 // but any outstanding snooze still needs to survive reboot.
@@ -86,6 +90,8 @@ class AlarmScheduler(private val context: Context) {
                         scheduleSnoozeAt(alarm.id, snoozeAt)
                     } else if (now - snoozeAt <= MISSED_SNOOZE_GRACE_MS) {
                         scheduleSnoozeAt(alarm.id, now + 2_000L)
+                    } else {
+                        cancelSnooze(alarm.id)
                     }
                 }
             } catch (failure: Exception) {
