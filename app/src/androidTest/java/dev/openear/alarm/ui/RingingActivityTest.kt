@@ -2,6 +2,14 @@
 package dev.openear.alarm.ui
 
 import android.content.Intent
+import android.content.ContentValues
+import android.graphics.Bitmap
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -33,16 +41,36 @@ class RingingActivityTest {
                 compose.onNodeWithText("Ringing UI").assertIsDisplayed()
                 compose.onNodeWithText("スヌーズ").assertIsDisplayed()
                 compose.onNodeWithText("停止").assertIsDisplayed()
+                saveScreenshot("openear-ringing.png")
             }
             store.setSnoozeCount(id, 1)
             ActivityScenario.launch<RingingActivity>(intent).use {
                 compose.onNodeWithText("スヌーズ回数の上限に達しました").assertIsDisplayed()
                 compose.onNodeWithText("スヌーズ").assertDoesNotExist()
                 compose.onNodeWithText("停止").assertIsDisplayed()
+                saveScreenshot("openear-ringing-limit.png")
             }
         } finally {
             store.resetSnoozeCount(id)
             store.delete(id)
+        }
+    }
+    private fun saveScreenshot(name: String) {
+        if (Build.VERSION.SDK_INT < 29) return
+        val image = compose.onRoot().captureToImage().asAndroidBitmap()
+        val resolver = InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
+        val uri = checkNotNull(resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/OpenEarAlarm")
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }))
+        try {
+            checkNotNull(resolver.openOutputStream(uri)).use { stream ->
+                check(image.compress(Bitmap.CompressFormat.PNG, 100, stream))
+            }
+        } finally {
+            resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
         }
     }
 }

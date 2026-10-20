@@ -70,6 +70,14 @@ class RingingActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Full-screen notifications reuse a SINGLE_TOP activity. Refresh its
+        // alarm name, time and remaining snoozes rather than displaying an old alarm.
+        setIntent(intent)
+        recreate()
+    }
+
     private fun sendAction(action: String) {
         startService(Intent(this, AlarmPlaybackService::class.java).setAction(action))
         finish()
