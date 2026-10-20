@@ -53,6 +53,32 @@ class MainActivityTest {
         saveScreenshot("openear-editor.png")
     }
 
+    @Test fun editingQuickTimerWithoutChangingTimePreservesAbsoluteDeadline() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = dev.openear.alarm.data.AlarmStore(context)
+        val scheduler = dev.openear.alarm.scheduler.AlarmScheduler(context)
+        val id = store.newId()
+        val deadline = System.currentTimeMillis() + 300_000L
+        val now = java.time.Instant.ofEpochMilli(deadline)
+            .atZone(java.time.ZoneId.systemDefault())
+        val spec = dev.openear.alarm.data.AlarmSpec(
+            id = id, hour = now.hour, minute = now.minute,
+            label = "Quick edit preservation", absoluteTriggerMillis = deadline
+        )
+        try {
+            store.put(spec)
+            scheduler.update(spec)
+            rule.activityRule.scenario.recreate()
+            rule.onNodeWithText(spec.label).performClick()
+            rule.onNodeWithText("保存").performClick()
+            assertEquals("Editing a timer must not replace it with tomorrow's wall-clock alarm",
+                deadline, store.byId(id)?.absoluteTriggerMillis)
+        } finally {
+            scheduler.cancel(id)
+            store.delete(id)
+        }
+    }
+
     @Test fun pendingSnoozeOfDisabledOneShotStillAppearsAsNextAlarm() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val store = dev.openear.alarm.data.AlarmStore(context)

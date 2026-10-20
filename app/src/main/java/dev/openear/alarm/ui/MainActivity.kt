@@ -419,6 +419,11 @@ private fun AlarmEdit(
             }
             Text(if (mask == 0) "曜日を選ばない場合は1回のみ鳴ります" else repeatLabel(mask),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (alarm.absoluteTriggerMillis != null) {
+                Text("クイックタイマーは時刻を変更すると通常のアラームになります。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             HorizontalDivider()
             Text("音声", style = MaterialTheme.typography.titleMedium)
             SettingSwitch("A · アラーム音量を使用", "OFFの場合はメディア音量を使用します", useAlarm) { useAlarm = it }
@@ -456,7 +461,10 @@ private fun AlarmEdit(
         Button(
             onClick = {
                 onSave(alarm.copy(hour = hour, minute = minute, label = label.trim(), daysMask = mask,
-                    absoluteTriggerMillis = null,
+                    absoluteTriggerMillis = alarm.absoluteTriggerMillis?.takeIf {
+                        it > System.currentTimeMillis() &&
+                        hour == alarm.hour && minute == alarm.minute && mask == 0
+                    },
                     enabled = true, useAlarmVolume = useAlarm, autoAdjustVolume = autoAdjust,
                     targetVolumePercent = target.toInt(), restoreVolume = restore,
                     snoozeMinutes = snooze.toInt(), vibrate = vibrate,
