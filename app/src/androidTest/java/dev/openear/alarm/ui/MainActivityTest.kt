@@ -79,6 +79,18 @@ class MainActivityTest {
         }
     }
 
+    @Test fun bothVolumeModesCanToggleIndependentlyAndAutoStopIsVisible() {
+        rule.onNodeWithContentDescription("アラームを追加").performClick()
+        rule.onNodeWithText("B · 音量を自動調整").performClick()
+        rule.onNodeWithText("目標音量", substring = true).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("A · アラーム音量を使用").performClick()
+        rule.onNodeWithText("自動停止  15分").performScrollTo().assertIsDisplayed()
+        saveScreenshot("openear-editor-advanced.png")
+        // Leave without saving: the global A/B defaults must remain unchanged.
+        rule.onNodeWithContentDescription("戻る").performClick()
+        rule.onNodeWithText("クイックタイマー").assertIsDisplayed()
+    }
+
     @Test fun pendingSnoozeOfDisabledOneShotStillAppearsAsNextAlarm() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val store = dev.openear.alarm.data.AlarmStore(context)
