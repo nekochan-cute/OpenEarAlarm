@@ -21,7 +21,15 @@ class RingingActivity : ComponentActivity() {
         setShowWhenLocked(true)
         setTurnScreenOn(true)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        val alarm = AlarmStore(this).byId(intent.getIntExtra(AlarmPlaybackService.EXTRA_ALARM_ID, -1))
+        val store = AlarmStore(this)
+        val alarm = store.byId(intent.getIntExtra(AlarmPlaybackService.EXTRA_ALARM_ID, -1))
+        if (alarm == null) {
+            // An expired notification must not display a fake 00:00 alarm.
+            finish()
+            return
+        }
+        val canSnooze = alarm.snoozeLimit == 0 ||
+            store.snoozeCount(alarm.id) < alarm.snoozeLimit
         setContent {
             OpenEarTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -40,10 +48,16 @@ class RingingActivity : ComponentActivity() {
                                 style = MaterialTheme.typography.bodyMedium)
                         }
                         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Button(
-                                onClick = { sendAction(AlarmPlaybackService.ACTION_SNOOZE) },
-                                modifier = Modifier.fillMaxWidth().height(68.dp)
-                            ) { Text("スヌーズ", style = MaterialTheme.typography.titleMedium) }
+                            if (canSnooze) {
+                                Button(
+                                    onClick = { sendAction(AlarmPlaybackService.ACTION_SNOOZE) },
+                                    modifier = Modifier.fillMaxWidth().height(68.dp)
+                                ) { Text("スヌーズ", style = MaterialTheme.typography.titleMedium) }
+                            } else {
+                                Text("スヌーズ回数の上限に達しました",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                             OutlinedButton(
                                 onClick = { sendAction(AlarmPlaybackService.ACTION_STOP) },
                                 modifier = Modifier.fillMaxWidth().height(68.dp)
