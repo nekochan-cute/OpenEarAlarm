@@ -46,6 +46,19 @@ class AlarmFiringInstrumentedTest {
             }
             assertTrue("Android must dispatch the actual scheduled alarm", received)
             assertTrue("The service must initialize and start playback", playbackStarted)
+
+            // Verify that the same service can be stopped through its public
+            // notification/lock-screen action rather than only by process teardown.
+            context.startService(Intent(context, AlarmPlaybackService::class.java)
+                .setAction(AlarmPlaybackService.ACTION_STOP))
+            val stoppedBy = SystemClock.elapsedRealtime() + 8_000L
+            var stopped = false
+            while (SystemClock.elapsedRealtime() < stoppedBy) {
+                stopped = AlarmHistory.recent(context).any { it.id == id && it.action == "停止" }
+                if (stopped) break
+                Thread.sleep(100L)
+            }
+            assertTrue("STOP must acknowledge and release a ringing alarm", stopped)
         } finally {
             runCatching {
                 context.startService(Intent(context, AlarmPlaybackService::class.java)
