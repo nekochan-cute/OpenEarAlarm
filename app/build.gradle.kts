@@ -24,6 +24,7 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+    testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
 dependencies {
@@ -42,4 +43,12 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
     testImplementation("junit:junit:4.13.2")
+    // Screens rendered on the JVM (ScreenshotTest); run with -Pscreenshots.
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation(platform("androidx.compose:compose-bom:2025.04.01"))
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+}
+
+tasks.withType<Test>().configureEach {
+    if (project.hasProperty("screenshots")) systemProperty("screenshots.dir", rootProject.file("build/screenshots").path)
 }
