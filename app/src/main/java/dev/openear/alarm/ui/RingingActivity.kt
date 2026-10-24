@@ -8,6 +8,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import dev.openear.alarm.ui.icons.Headphones
+import dev.openear.alarm.ui.icons.automirrored.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,7 +40,8 @@ class RingingActivity : ComponentActivity() {
         val canSnooze = alarm.snoozeLimit == 0 || store.snoozeCount(alarm.id) < alarm.snoozeLimit
         setContent {
             OpenEarTheme {
-                RingingScreen(alarm, canSnooze, snooze = { send(AlarmPlaybackService.ACTION_SNOOZE) }, stop = { send(AlarmPlaybackService.ACTION_STOP) })
+                val output by AlarmPlaybackService.output.collectAsState()
+                RingingScreen(alarm, canSnooze, output, snooze = { send(AlarmPlaybackService.ACTION_SNOOZE) }, stop = { send(AlarmPlaybackService.ACTION_STOP) })
             }
         }
     }
@@ -56,7 +60,7 @@ class RingingActivity : ComponentActivity() {
 }
 
 @Composable
-internal fun RingingScreen(alarm: AlarmSpec, canSnooze: Boolean, snooze: () -> Unit, stop: () -> Unit) {
+internal fun RingingScreen(alarm: AlarmSpec, canSnooze: Boolean, output: AlarmPlaybackService.Output?, snooze: () -> Unit, stop: () -> Unit) {
     var now by remember { mutableStateOf(Instant.now()) }
     LaunchedEffect(Unit) { while (true) { delay(1000 - System.currentTimeMillis() % 1000); now = Instant.now() } }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
@@ -69,6 +73,16 @@ internal fun RingingScreen(alarm: AlarmSpec, canSnooze: Boolean, snooze: () -> U
             Text(now.atZone(java.time.ZoneId.systemDefault())
                 .format(java.time.format.DateTimeFormatter.ofPattern("M月d日（E）", java.util.Locale.JAPAN)),
                 style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            output?.let {
+                Spacer(Modifier.height(24.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(if (it == AlarmPlaybackService.Output.Headphones) Icons.Rounded.Headphones else Icons.AutoMirrored.Rounded.VolumeUp, null,
+                        Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (it == AlarmPlaybackService.Output.Headphones) "イヤホンで鳴っています" else "スピーカーで鳴っています",
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
             Spacer(Modifier.weight(1.4f))
             if (canSnooze) {
                 FilledTonalButton(snooze, Modifier.fillMaxWidth().height(72.dp)) {

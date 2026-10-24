@@ -26,6 +26,8 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import dev.openear.alarm.R
 import dev.openear.alarm.data.AlarmSpec
 import dev.openear.alarm.data.AlarmStore
@@ -43,9 +45,11 @@ class AlarmPlaybackService : Service() {
     private var player: MediaPlayer? = null
     private var currentSpec: AlarmSpec? = null
     private var focus: AudioFocusRequest? = null
-    private var modifiedStream: Int? = null
-    private var previousVolume: Int? = null
-    private var appliedVolume: Int? = null
+    /** Stream whose volume the alarm sets, when it sets one. */
+    private var volumeStream: Int? = null
+    /** Per output: volume before the alarm and the volume it set. Android keeps a separate level for each output. */
+    private val volumeChanges = mutableMapOf<Output, Pair<Int, Int>>()
+    private var volumeOutput: Output? = null
     private var fade: Runnable? = null
     private var preferredId: Int? = null
     private var playbackGain = 0f
@@ -166,21 +170,10 @@ class AlarmPlaybackService : Service() {
             Log.w(TAG, "Audio focus not granted ($focusResult); attempting alarm playback")
         }
 
-        if (spec.autoAdjustVolume) {
-            try {
-                val max = audio.getStreamMaxVolume(stream)
-                val old = audio.getStreamVolume(stream)
-                val target = (max * spec.targetVolumePercent / 100f).roundToInt().coerceIn(0, max)
-                if (old != target) {
-                    audio.setStreamVolume(stream, target, 0)
-                    modifiedStream = stream
-                    previousVolume = old
-                    appliedVolume = target
-                }
-            } catch (e: RuntimeException) {
-                Log.w(TAG, "Audio volume change blocked or unsupported; continuing playback", e)
-            }
-        }
+        if (spec.autoAdjustVolume) volumeStream = stream
+        // Set the level for the expected output before the first sample plays.
+        runCatching { audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { it.type in HEADPHONES } }
+            .getOrNull()?.let { setOutput(if (it) Output.Headphones else Output.Speaker) }
 
         val fallback = try { Uri.fromFile(BundledTone.getOrCreate(createDeviceProtectedStorageContext())) } catch (e: Exception) {
             Log.e(TAG, "Bundled alarm tone unavailable", e)
@@ -297,18 +290,10 @@ class AlarmPlaybackService : Service() {
         val p = player ?: return
         try {
             val outputs = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).toList()
-            val headphones = outputs.firstOrNull { device ->
-                device.type in setOf(
-                    AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-                    AudioDeviceInfo.TYPE_WIRED_HEADSET,
-                    AudioDeviceInfo.TYPE_USB_HEADSET,
-                    AudioDeviceInfo.TYPE_USB_DEVICE,
-                    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
-                    AudioDeviceInfo.TYPE_BLE_HEADSET
-                )
-            }
+            val headphones = outputs.firstOrNull { it.type in HEADPHONES }
             val chosen = headphones
                 ?: outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+            setOutput(if (headphones != null) Output.Headphones else Output.Speaker)
             if (chosen != null && chosen.id != preferredId) {
                 val accepted = p.setPreferredDevice(chosen)
                 if (accepted) preferredId = chosen.id
@@ -322,6 +307,8 @@ class AlarmPlaybackService : Service() {
                             Log.w(TAG,
                                 "Actual route differs: requested=${chosen.type}, actual=${routed.type}")
                         }
+                        // The device the audio actually reached decides which level applies.
+                        if (routed != null) setOutput(if (routed.type in HEADPHONES) Output.Headphones else Output.Speaker)
                     }
                 } catch (e: RuntimeException) {
                     Log.w(TAG, "Unable to inspect active alarm audio route", e)
@@ -330,6 +317,25 @@ class AlarmPlaybackService : Service() {
         } catch (e: RuntimeException) {
             Log.w(TAG, "Audio routing unavailable; continuing wake-up playback", e)
             AlarmHistory.record(this, currentSpec?.id ?: -1, "音声出力先の確認に失敗")
+        }
+    }
+
+    /** Records where the alarm plays and, when the alarm sets a volume, applies that output's level. */
+    private fun setOutput(output: Output) {
+        mutableOutput.value = output
+        val spec = currentSpec ?: return
+        val stream = volumeStream ?: return
+        if (output == volumeOutput) return
+        volumeOutput = output
+        try {
+            val max = audio.getStreamMaxVolume(stream)
+            val old = audio.getStreamVolume(stream)
+            val percent = if (output == Output.Headphones) spec.headphoneVolumePercent else spec.targetVolumePercent
+            val target = (max * percent / 100f).roundToInt().coerceIn(if (percent > 0) 1 else 0, max)
+            volumeChanges.getOrPut(output) { old to target }
+            if (old != target) audio.setStreamVolume(stream, target, 0)
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "Audio volume change blocked or unsupported; continuing playback", e)
         }
     }
 
@@ -397,18 +403,19 @@ class AlarmPlaybackService : Service() {
             catch (e: RuntimeException) { Log.w(TAG, "Could not abandon audio focus", e) }
         }
         focus = null
-        val stream = modifiedStream
-        if (stream != null && currentSpec?.restoreVolume == true) {
+        val stream = volumeStream
+        val restore = volumeOutput?.let(volumeChanges::get)
+        if (stream != null && restore != null && currentSpec?.restoreVolume == true) {
             try {
-                // Preserve a volume the user adjusted manually while the alarm was ringing.
-                if (audio.getStreamVolume(stream) == appliedVolume) {
-                    previousVolume?.let { audio.setStreamVolume(stream, it, 0) }
-                }
+                // Only the connected output can be changed, and a level the user changed while ringing is kept.
+                val (before, applied) = restore
+                if (before != applied && audio.getStreamVolume(stream) == applied) audio.setStreamVolume(stream, before, 0)
             } catch (e: RuntimeException) { Log.w(TAG, "Restore volume restricted", e) }
         }
-        modifiedStream = null
-        previousVolume = null
-        appliedVolume = null
+        volumeStream = null
+        volumeChanges.clear()
+        volumeOutput = null
+        mutableOutput.value = null
         currentSpec = null
     }
 
@@ -417,7 +424,17 @@ class AlarmPlaybackService : Service() {
         super.onDestroy()
     }
 
+    enum class Output { Headphones, Speaker }
+
     companion object {
+        private val mutableOutput = MutableStateFlow<Output?>(null)
+        /** Where the ringing alarm is playing; null when no alarm rings. */
+        val output = mutableOutput.asStateFlow()
+        private val HEADPHONES = setOf(
+            AudioDeviceInfo.TYPE_WIRED_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADSET,
+            AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE,
+            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLE_HEADSET,
+        )
         private const val TAG = "AlarmPlaybackService"
         private const val CHANNEL_ID = "active_alarms_v1"
         private const val NOTIFICATION_ID = 1001

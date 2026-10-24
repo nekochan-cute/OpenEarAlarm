@@ -189,8 +189,8 @@ internal fun outputName(type: Int): String? = when (type) {
     else -> null
 }
 
-private fun DefaultSettings.values() = Defaults(useAlarmVolume, autoAdjustVolume, targetVolumePercent, restoreVolume)
+private fun DefaultSettings.values() = Defaults(useAlarmVolume, autoAdjustVolume, targetVolumePercent, headphoneVolumePercent, restoreVolume)
 private fun DefaultSettings.save(d: Defaults) {
     useAlarmVolume = d.useAlarmVolume; autoAdjustVolume = d.autoAdjustVolume
-    targetVolumePercent = d.targetVolumePercent; restoreVolume = d.restoreVolume
+    targetVolumePercent = d.targetVolumePercent; headphoneVolumePercent = d.headphoneVolumePercent; restoreVolume = d.restoreVolume
 }

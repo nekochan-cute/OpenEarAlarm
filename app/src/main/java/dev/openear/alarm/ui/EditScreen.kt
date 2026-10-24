@@ -60,6 +60,7 @@ private val snoozeMinutes = listOf(1, 3, 5, 10, 15, 20, 30).map { it to "${it}�
 private val snoozeLimits = listOf(1, 2, 3, 5, 10, 0).map { it to if (it == 0) "制限なし" else "${it}回まで" }
 private val streams = listOf(true to "アラームの音量", false to "メディアの音量")
 
+internal fun volumeLabel(speaker: Int, headphones: Int) = "スピーカー ${speaker}%・イヤホン ${headphones}%"
 internal fun fadeLabel(seconds: Int) = fades.firstOrNull { it.first == seconds }?.second ?: "${seconds}秒"
 internal fun stopLabel(minutes: Int) = stops.firstOrNull { it.first == minutes }?.second ?: "${minutes}分後"
 internal fun snoozeLabel(a: AlarmSpec) = "${a.snoozeMinutes}分・" + if (a.snoozeLimit == 0) "制限なし" else "${a.snoozeLimit}回まで"
@@ -105,10 +106,13 @@ internal fun EditScreen(alarm: AlarmSpec, isNew: Boolean, actions: EditActions, 
             SettingRow("サウンド", soundName(context, draft.soundUri), Icons.Rounded.MusicNote) { dialog = "sound" }
             SettingRow("使う音量", streams.first { it.first == draft.useAlarmVolume }.second, Icons.AutoMirrored.Rounded.VolumeUp) { dialog = "stream" }
             SwitchRow("音量を指定する", draft.autoAdjustVolume, Icons.Rounded.Tune,
-                if (draft.autoAdjustVolume) "${draft.targetVolumePercent}%" else "端末の音量のまま") { draft = draft.copy(autoAdjustVolume = it) }
+                if (draft.autoAdjustVolume) volumeLabel(draft.targetVolumePercent, draft.headphoneVolumePercent) else "端末の音量のまま") {
+                draft = draft.copy(autoAdjustVolume = it)
+            }
             if (draft.autoAdjustVolume) {
-                Slider(draft.targetVolumePercent.toFloat(), { draft = draft.copy(targetVolumePercent = it.toInt()) }, valueRange = 10f..100f,
-                    modifier = Modifier.padding(start = 72.dp, end = 24.dp))
+                VolumeLevels(draft.targetVolumePercent, draft.headphoneVolumePercent) { speaker, headphones ->
+                    draft = draft.copy(targetVolumePercent = speaker, headphoneVolumePercent = headphones)
+                }
                 SwitchRow("鳴り終わったら元の音量に戻す", draft.restoreVolume, null) { draft = draft.copy(restoreVolume = it) }
             }
             SettingRow("だんだん大きく", fadeLabel(draft.fadeInSeconds), Icons.AutoMirrored.Rounded.TrendingUp) { dialog = "fade" }

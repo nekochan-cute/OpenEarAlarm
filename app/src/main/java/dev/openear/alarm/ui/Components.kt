@@ -35,7 +35,7 @@ internal fun SettingRow(title: String, value: String?, icon: ImageVector?, trail
     ListItem(
         headlineContent = { Text(title) },
         supportingContent = value?.let { { Text(it) } },
-        leadingContent = icon?.let { { Icon(it, null) } },
+        leadingContent = { if (icon != null) Icon(icon, null) else Spacer(Modifier.width(24.dp)) },
         trailingContent = trailing,
         modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -47,7 +47,7 @@ internal fun SwitchRow(title: String, checked: Boolean, icon: ImageVector?, valu
     ListItem(
         headlineContent = { Text(title) },
         supportingContent = value?.let { { Text(it) } },
-        leadingContent = icon?.let { { Icon(it, null) } },
+        leadingContent = { if (icon != null) Icon(icon, null) else Spacer(Modifier.width(24.dp)) },
         trailingContent = { Switch(checked, onCheckedChange = null) },
         modifier = Modifier.toggleable(checked, role = Role.Switch, onValueChange = onChange),
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -75,6 +75,22 @@ internal fun <T> ChoiceDialog(title: String, options: List<Pair<T, String>>, sel
         confirmButton = {},
         dismissButton = { TextButton(dismiss) { Text("キャンセル") } },
     )
+}
+
+/** Separate target levels for the speaker and headphones, as Android keeps one per output. */
+@Composable
+internal fun VolumeLevels(speaker: Int, headphones: Int, onChange: (speaker: Int, headphones: Int) -> Unit) {
+    Column(Modifier.padding(start = 72.dp, end = 24.dp)) {
+        listOf("スピーカー" to speaker, "イヤホン" to headphones).forEachIndexed { i, (name, value) ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(80.dp))
+                Slider(value.toFloat(), { v -> if (i == 0) onChange(v.toInt(), headphones) else onChange(speaker, v.toInt()) },
+                    valueRange = 10f..100f, modifier = Modifier.weight(1f))
+                Text("$value%", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(48.dp).padding(start = 8.dp))
+            }
+        }
+    }
 }
 
 /** Seven round weekday toggles in one row; they shrink on narrow screens rather than wrap. */

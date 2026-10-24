@@ -16,6 +16,9 @@ class DefaultSettings(context: Context) {
     var targetVolumePercent: Int
         get() = prefs.getInt("targetVolumePercent", 70)
         set(value) { check(prefs.edit().putInt("targetVolumePercent", value.coerceIn(0, 100)).commit()) }
+    var headphoneVolumePercent: Int
+        get() = prefs.getInt("headphoneVolumePercent", 40)
+        set(value) { check(prefs.edit().putInt("headphoneVolumePercent", value.coerceIn(0, 100)).commit()) }
     var restoreVolume: Boolean
         get() = prefs.getBoolean("restoreVolume", true)
         set(value) { check(prefs.edit().putBoolean("restoreVolume", value).commit()) }
@@ -25,6 +28,7 @@ class DefaultSettings(context: Context) {
         useAlarmVolume = useAlarmVolume,
         autoAdjustVolume = autoAdjustVolume,
         targetVolumePercent = targetVolumePercent,
+        headphoneVolumePercent = headphoneVolumePercent,
         restoreVolume = restoreVolume
     )
 }

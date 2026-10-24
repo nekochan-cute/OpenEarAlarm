@@ -26,7 +26,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /** Defaults for new alarms. */
-internal data class Defaults(val useAlarmVolume: Boolean, val autoAdjustVolume: Boolean, val targetVolumePercent: Int, val restoreVolume: Boolean)
+internal data class Defaults(val useAlarmVolume: Boolean, val autoAdjustVolume: Boolean, val targetVolumePercent: Int,
+                             val headphoneVolumePercent: Int, val restoreVolume: Boolean)
 
 /** What alarms depend on; a false value comes with an action that fixes it. */
 internal class Readiness(val exact: Boolean, val notifications: Boolean, val fullScreen: Boolean, val outputs: List<String>)
@@ -46,12 +47,13 @@ internal fun SettingsScreen(defaults: Defaults, ready: Readiness, version: Strin
             SectionHeader("新しいアラームの初期値")
             SettingRow("使う音量", if (defaults.useAlarmVolume) "アラームの音量" else "メディアの音量", Icons.AutoMirrored.Rounded.VolumeUp) { choosing = true }
             SwitchRow("音量を指定する", defaults.autoAdjustVolume, Icons.Rounded.Tune,
-                if (defaults.autoAdjustVolume) "${defaults.targetVolumePercent}%" else "端末の音量のまま") {
+                if (defaults.autoAdjustVolume) volumeLabel(defaults.targetVolumePercent, defaults.headphoneVolumePercent) else "端末の音量のまま") {
                 actions.defaults(defaults.copy(autoAdjustVolume = it))
             }
             if (defaults.autoAdjustVolume) {
-                Slider(defaults.targetVolumePercent.toFloat(), { actions.defaults(defaults.copy(targetVolumePercent = it.toInt())) },
-                    valueRange = 10f..100f, modifier = Modifier.padding(start = 72.dp, end = 24.dp))
+                VolumeLevels(defaults.targetVolumePercent, defaults.headphoneVolumePercent) { speaker, headphones ->
+                    actions.defaults(defaults.copy(targetVolumePercent = speaker, headphoneVolumePercent = headphones))
+                }
                 SwitchRow("鳴り終わったら元の音量に戻す", defaults.restoreVolume, null) { actions.defaults(defaults.copy(restoreVolume = it)) }
             }
 

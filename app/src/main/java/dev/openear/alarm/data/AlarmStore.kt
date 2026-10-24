@@ -37,6 +37,8 @@ class AlarmStore(context: Context) {
                     useAlarmVolume = o.optBoolean("alarmVolume", true),
                     autoAdjustVolume = o.optBoolean("autoAdjust", false),
                     targetVolumePercent = o.optInt("targetVolume", 70),
+                    // Alarms saved before headphones had their own level keep using one level for both.
+                    headphoneVolumePercent = o.optInt("headphoneVolume", o.optInt("targetVolume", 70)),
                     restoreVolume = o.optBoolean("restoreVolume", true),
                     snoozeMinutes = o.optInt("snoozeMinutes", 5),
                     snoozeLimit = o.optInt("snoozeLimit", 3),
@@ -102,7 +104,8 @@ class AlarmStore(context: Context) {
                 put("id", a.id); put("hour", a.hour); put("minute", a.minute)
                 put("label", a.label); put("days", a.daysMask); put("enabled", a.enabled)
                 put("alarmVolume", a.useAlarmVolume); put("autoAdjust", a.autoAdjustVolume)
-                put("targetVolume", a.targetVolumePercent); put("restoreVolume", a.restoreVolume)
+                put("targetVolume", a.targetVolumePercent); put("headphoneVolume", a.headphoneVolumePercent)
+                put("restoreVolume", a.restoreVolume)
                 put("snoozeMinutes", a.snoozeMinutes); put("snoozeLimit", a.snoozeLimit)
                 put("soundUri", a.soundUri ?: "")
                 put("vibrate", a.vibrate); put("fadeInSeconds", a.fadeInSeconds)

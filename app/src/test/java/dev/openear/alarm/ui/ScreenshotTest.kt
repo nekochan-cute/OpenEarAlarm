@@ -54,7 +54,7 @@ class ScreenshotTest(private val dark: Boolean) {
         val store = AlarmStore(context)
         val scheduler = AlarmScheduler(context)
         listOf(
-            AlarmSpec(store.newId(), 6, 30, label = "平日", daysMask = 0b0011111),
+            AlarmSpec(store.newId(), 6, 30, label = "平日", daysMask = 0b0011111, autoAdjustVolume = true),
             AlarmSpec(store.newId(), 7, 45, label = "", daysMask = 0b1100000),
             AlarmSpec(store.newId(), 13, 0, label = "昼寝", enabled = false),
             AlarmSpec(store.newId(), 23, 10, label = "薬を飲む", daysMask = 127),

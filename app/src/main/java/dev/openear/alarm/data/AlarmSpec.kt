@@ -11,7 +11,10 @@ data class AlarmSpec(
     val enabled: Boolean = true,
     val useAlarmVolume: Boolean = true,
     val autoAdjustVolume: Boolean = false,
+    /** Volume set on the phone speaker. */
     val targetVolumePercent: Int = 70,
+    /** Volume set on headphones; Android keeps a separate level per output device. */
+    val headphoneVolumePercent: Int = 40,
     val restoreVolume: Boolean = true,
     val snoozeMinutes: Int = 5,
     /** Number of snoozes allowed per normal alarm occurrence; 0 means unlimited. */
@@ -29,6 +32,7 @@ data class AlarmSpec(
         require(hour in 0..23 && minute in 0..59)
         require(daysMask in 0..127)
         require(targetVolumePercent in 0..100)
+        require(headphoneVolumePercent in 0..100)
         require(snoozeMinutes in 1..60)
         require(snoozeLimit in 0..10)
         require(fadeInSeconds in 0..60)
