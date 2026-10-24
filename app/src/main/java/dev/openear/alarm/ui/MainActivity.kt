@@ -33,7 +33,9 @@ import dev.openear.alarm.data.AlarmSpec
 import dev.openear.alarm.data.AlarmStore
 import dev.openear.alarm.data.DefaultSettings
 import dev.openear.alarm.scheduler.AlarmScheduler
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
@@ -112,6 +114,11 @@ private fun App() {
         fullScreen = { if (Build.VERSION.SDK_INT >= 34) open(context, Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT) },
     )
 
+    // A force stop removes every registration; opening the app puts them back.
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) { runCatching { scheduler.rescheduleAll() } }
+        reload()
+    }
     val lifecycle = (context as ComponentActivity).lifecycle
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) reload() }
