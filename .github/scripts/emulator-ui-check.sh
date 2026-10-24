@@ -2,7 +2,7 @@
 set -u
 mkdir -p screenshots
 status=0
-gradle --no-daemon :app:connectedDebugAndroidTest || status=$?
+./gradlew --no-daemon :app:connectedDebugAndroidTest || status=$?
 
 # UI images come from Compose pixel capture inside instrumentation tests.
 # Save them in MediaStore so they survive the test runner uninstalling its APK.

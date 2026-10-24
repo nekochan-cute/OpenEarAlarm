@@ -1,75 +1,114 @@
 name: Android CI
+
 on:
   push:
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    name: Build, unit test and lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v4
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
-          packages: platform-tools
-      - run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
-      - uses: gradle/actions/setup-gradle@v4
+          cache-provider: basic
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
-          gradle-version: '8.13'
-      - name: Assemble and unit tests
-        run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest :app:testDebugUnitTest :app:lintDebug
-      - uses: actions/upload-artifact@v4
-        if: success()
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
+      - name: Build, unit test and lint
+        run: ./gradlew --no-daemon --stacktrace :app:assembleDebug :app:assembleDebugAndroidTest :app:testDebugUnitTest :app:lintDebug
+      - name: Name APK and record checksum
+        run: |
+          set -euo pipefail
+          mkdir dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/OpenEarAlarm-debug.apk
+          (cd dist && sha256sum OpenEarAlarm-debug.apk > SHA256SUMS.txt)
+          { echo '### APK SHA-256'; echo '```'; cat dist/SHA256SUMS.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      # Uploaded without a ZIP so the artifact downloads as the .apk itself.
+      - name: Save APK
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: openear-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: dist/OpenEarAlarm-debug.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - name: Save test and lint reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-reports
+          path: |
+            app/build/reports/
+            app/build/test-results/
+          if-no-files-found: warn
+          retention-days: 14
 
-  instrumented-ui:
+  instrumented:
+    name: Emulator tests (API ${{ matrix.api }})
     needs: build-and-test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         api: [28, 35, 36]
-    permissions:
-      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v4
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
-          packages: platform-tools
-      - uses: gradle/actions/setup-gradle@v4
+          cache-provider: basic
+          cache-read-only: true
+      - name: Set up Android SDK and emulator
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
-          gradle-version: '8.13'
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0 emulator system-images;android-${{ matrix.api }};google_apis;x86_64'
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Launch Android ${{ matrix.api }} emulator and test UI
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: ${{ matrix.api }}
-          arch: x86_64
-          target: google_apis
-          profile: pixel_6
-          disable-animations: true
-          script: bash .github/scripts/emulator-ui-check.sh
-      - uses: actions/upload-artifact@v4
+      - name: Boot emulator and run tests
+        run: |
+          set -euo pipefail
+          echo no | avdmanager create avd --force -n ci -k 'system-images;android-${{ matrix.api }};google_apis;x86_64' -d pixel_6
+          "$ANDROID_HOME/emulator/emulator" -avd ci -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > emulator.log 2>&1 &
+          adb wait-for-device
+          timeout 600 bash -c 'until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = "1" ]; do sleep 5; done'
+          for scale in window_animation_scale transition_animation_scale animator_duration_scale; do adb shell settings put global "$scale" 0; done
+          bash .github/scripts/emulator-ui-check.sh
+      - name: Save emulator test results
         if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: android-ui-test-results-api${{ matrix.api }}
+          name: emulator-results-api${{ matrix.api }}
           path: |
             app/build/outputs/androidTest-results/connected/
             app/build/reports/androidTests/connected/
             screenshots/
+            emulator.log
           if-no-files-found: warn
+          retention-days: 14
