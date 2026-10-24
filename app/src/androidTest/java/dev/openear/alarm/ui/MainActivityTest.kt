@@ -29,27 +29,27 @@ class MainActivityTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
 
     @Test fun opensHomeAndSettingsWithoutCrashing() {
-        rule.onNodeWithText("クイックタイマー").assertIsDisplayed()
+        rule.onNodeWithText("10分後").assertIsDisplayed()
         saveScreenshot("openear-home.png")
         rule.onNodeWithContentDescription("設定").performClick()
         rule.onNodeWithText("新しいアラームの初期値").assertIsDisplayed()
-        rule.onNodeWithText("A · アラーム音量を使用").assertIsDisplayed()
-        rule.onNodeWithText("B · 音量を自動調整").assertIsDisplayed()
+        rule.onNodeWithText("使う音量").assertIsDisplayed()
+        rule.onNodeWithText("音量を指定する").assertIsDisplayed()
         saveScreenshot("openear-settings.png")
         rule.onNodeWithContentDescription("戻る").performClick()
-        rule.onNodeWithText("クイックタイマー").assertIsDisplayed()
+        rule.onNodeWithText("10分後").assertIsDisplayed()
     }
 
     @Test fun opensAlarmEditorWithoutCrashing() {
         rule.onNodeWithContentDescription("アラームを追加").performClick()
         rule.onNodeWithText("アラームを追加").assertIsDisplayed()
-        rule.onNodeWithText("アラーム名（任意）").assertIsDisplayed()
-        rule.onNodeWithText("A · アラーム音量を使用").assertExists()
-        rule.onNodeWithText("B · 音量を自動調整").assertExists()
-        // Day chips must stay on a single line instead of wrapping Sunday.
+        rule.onNodeWithText("ラベル").assertIsDisplayed()
+        rule.onNodeWithText("使う音量").assertExists()
+        rule.onNodeWithText("音量を指定する").assertExists()
+        // Weekday toggles must stay on a single line instead of wrapping Sunday.
         val monday = rule.onNodeWithText("月").fetchSemanticsNode().boundsInRoot.top
         val sunday = rule.onNodeWithText("日").fetchSemanticsNode().boundsInRoot.top
-        assertEquals("Weekday chips should be a single row", monday, sunday, 2f)
+        assertEquals("Weekday toggles should be a single row", monday, sunday, 2f)
         saveScreenshot("openear-editor.png")
     }
 
@@ -81,14 +81,16 @@ class MainActivityTest {
 
     @Test fun bothVolumeModesCanToggleIndependentlyAndAutoStopIsVisible() {
         rule.onNodeWithContentDescription("アラームを追加").performClick()
-        rule.onNodeWithText("B · 音量を自動調整").performClick()
-        rule.onNodeWithText("目標音量", substring = true).performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("A · アラーム音量を使用").performClick()
-        rule.onNodeWithText("自動停止  15分").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("音量を指定する").performClick()
+        rule.onNodeWithText("70%").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("使う音量").performClick()
+        rule.onNodeWithText("メディアの音量").performClick()
+        rule.onNodeWithText("メディアの音量").assertIsDisplayed()
+        rule.onNodeWithText("15分後").performScrollTo().assertIsDisplayed()
         saveScreenshot("openear-editor-advanced.png")
-        // Leave without saving: the global A/B defaults must remain unchanged.
+        // Leave without saving: the defaults for new alarms must remain unchanged.
         rule.onNodeWithContentDescription("戻る").performClick()
-        rule.onNodeWithText("クイックタイマー").assertIsDisplayed()
+        rule.onNodeWithText("10分後").assertIsDisplayed()
     }
 
     @Test fun pendingSnoozeOfDisabledOneShotStillAppearsAsNextAlarm() {
@@ -105,7 +107,7 @@ class MainActivityTest {
             rule.activityRule.scenario.recreate()
             rule.onNodeWithText("One-shot snooze test").assertIsDisplayed()
             rule.onNodeWithText("スヌーズ中", substring = true).assertIsDisplayed()
-            rule.onNodeWithText("次のアラーム").assertIsDisplayed()
+            rule.onNodeWithText("次のアラーム", substring = true).assertIsDisplayed()
         } finally {
             scheduler.cancel(id)
             store.delete(id)
@@ -118,14 +120,14 @@ class MainActivityTest {
         val label = "OpenEar UI test " + System.nanoTime()
         try {
             rule.onNodeWithContentDescription("アラームを追加").performClick()
-            rule.onNodeWithText("アラーム名（任意）").performTextInput(label)
+            rule.onNodeWithText("ラベル").performTextInput(label)
             rule.onNodeWithText("保存").performClick()
             rule.onNodeWithText(label).assertIsDisplayed()
             saveScreenshot("openear-alarm-list.png")
             rule.onNodeWithText(label).performClick()
             rule.onNodeWithText("アラームを削除").performScrollTo().performClick()
             rule.onNodeWithText("削除").performClick()
-            rule.onNodeWithText("アラームがありません").assertIsDisplayed()
+            rule.onNodeWithText("アラームはありません").assertIsDisplayed()
         } finally {
             store.all().filter { it.label == label }.forEach { spec ->
                 runCatching { dev.openear.alarm.scheduler.AlarmScheduler(context).cancel(spec.id) }

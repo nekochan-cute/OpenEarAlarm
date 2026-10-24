@@ -39,15 +39,15 @@ class RingingActivityTest {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             ActivityScenario.launch<RingingActivity>(intent).use {
                 compose.onNodeWithText("Ringing UI").assertIsDisplayed()
-                compose.onNodeWithText("スヌーズ").assertIsDisplayed()
-                compose.onNodeWithText("停止").assertIsDisplayed()
+                compose.onNodeWithText("スヌーズ", substring = true).assertIsDisplayed()
+                compose.onNodeWithText("止める").assertIsDisplayed()
                 saveScreenshot("openear-ringing.png")
             }
             store.setSnoozeCount(id, 1)
             ActivityScenario.launch<RingingActivity>(intent).use {
-                compose.onNodeWithText("スヌーズ回数の上限に達しました").assertIsDisplayed()
-                compose.onNodeWithText("スヌーズ").assertDoesNotExist()
-                compose.onNodeWithText("停止").assertIsDisplayed()
+                compose.onNodeWithText("スヌーズは使い切りました").assertIsDisplayed()
+                compose.onNodeWithText("スヌーズ  ", substring = true).assertDoesNotExist()
+                compose.onNodeWithText("止める").assertIsDisplayed()
                 saveScreenshot("openear-ringing-limit.png")
             }
         } finally {

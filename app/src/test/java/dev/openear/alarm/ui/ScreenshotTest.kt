@@ -47,6 +47,10 @@ class ScreenshotTest(private val dark: Boolean) {
     }
 
     private fun seed() {
+        // Alarms are fully set up in the samples; the empty screen keeps the warnings visible.
+        val app = ApplicationProvider.getApplicationContext<android.app.Application>()
+        org.robolectric.Shadows.shadowOf(app).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS, android.Manifest.permission.USE_FULL_SCREEN_INTENT)
+        org.robolectric.shadows.ShadowAlarmManager.setCanScheduleExactAlarms(true)
         val store = AlarmStore(context)
         val scheduler = AlarmScheduler(context)
         listOf(
@@ -80,6 +84,10 @@ class ScreenshotTest(private val dark: Boolean) {
     @Test fun home() = main("02-home")
     @Test fun editor() = main("03-editor") { compose.onNodeWithText("平日").performClick() }
     @Test fun settings() = main("04-settings") { compose.onNodeWithContentDescription("設定").performClick() }
+    @Test fun history() = main("06-history") {
+        compose.onNodeWithContentDescription("設定").performClick()
+        compose.onNodeWithText("履歴").performClick()
+    }
 
     @Test fun ringing() {
         seed()
