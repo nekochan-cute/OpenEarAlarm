@@ -1,31 +1,50 @@
-# OpenEar Alarm（開発初期版）
+# OpenEar Alarm
 
-Android向けのイヤホン優先アラームです。イヤホンを接続していない場合や接続が切れた場合は、本体スピーカーへの切り替えを試みます。完全OSS（GPL-3.0-or-later）、広告・課金・トラッキング・ネットワーク通信なしで開発しています。
+イヤホンがつながっていればイヤホンで、つながっていなければ本体スピーカーで鳴るAndroidのアラームです。鳴っている途中でイヤホンが外れた場合も、スピーカーに切り替えて鳴らし続けます。
 
-## 実装済み
+GPL-3.0-or-later。広告・アカウント・分析・ネットワーク権限はありません。
 
-- Jetpack Compose / Material 3：アラーム一覧、追加・編集・削除・削除取り消し、各曜日の繰り返し。10・20・30分のクイックタイマー。
-- A「アラーム音量を使用」とB「音量を自動調整」を、それぞれ独立したON/OFFとして設定。全体の初期値とアラームごとの設定に対応。
-- Bで設定した音量への変更と、可能な範囲での元の音量への復帰。音量フェードイン。
-- 端末内の任意の音声ファイルを選択。再生できないときはアプリ内で生成するオフラインのアラーム音へ切り替え。
-- 正確なアラーム予約、再起動／日時変更／アプリ更新後の再予約。
-- フォアグラウンド再生、通知からの停止とスヌーズ、ロック画面での操作画面、バイブレーション。スヌーズ回数の上限（0は無制限）と自動停止時間（0は停止なし）をアラームごとに設定できます。
-- イヤホン優先の音声出力選択、切断時のスピーカー切替、権限と接続先の診断画面。
+[English](README.md)
 
-## ビルド方法
+<p>
+<img src="docs/screenshots/home-light.png" width="200" alt="アラーム一覧">
+<img src="docs/screenshots/editor-light.png" width="200" alt="アラームの編集">
+<img src="docs/screenshots/settings-light.png" width="200" alt="設定">
+<img src="docs/screenshots/ringing-dark.png" width="200" alt="鳴動画面">
+</p>
 
-Android Studioでフォルダを開き、SDK 36、JDK 17以上、Gradle 8.13を使用してください。端末にGradleがあれば `gradle :app:assembleDebug` でAPKを生成できます。GitHub ActionsではAPKビルド・単体テスト・Lintが成功しています。Androidエミュレーターの画面操作テストも追加していますが、実機動作検証は未完了です。Gradle Wrapperの設定ファイルはありますが、JARと起動スクリプトの生成が必要です。
+## 機能
 
-開発段階のため、重要な起床用途では既存のアラームを併用してください。Androidの音声経路制御は端末依存であり、指定した出力先での再生を完全には保証できません。Direct Bootの保存領域と起動受信を実装していますが、ロック解除前の実機試験は未完了です。音声の出力先別目標音量と長時間実機試験は未完成です。端末内に直近40件の実行履歴を保存し、診断画面で確認できます。
+- 1回だけ・曜日ごとのアラーム、10・20・30分後のタイマー、次のアラームまでの残り時間の表示。
+- サウンド：アプリ内蔵の音、端末のアラーム音、任意の音声ファイル。再生できない音は内蔵の音に切り替わります。
+- イヤホン優先：有線・USB・Bluetoothのイヤホンがつながっている間はイヤホンで鳴らし、外れたらスピーカーに切り替えます。
+- 出力先ごとの音量：アラームごとにスピーカーとイヤホンの音量を指定できます。Androidは出力先ごとに音量を持っているため、イヤホンが外れた時点でスピーカーの音量に切り替わります。止めたときは元の音量に戻します。
+- 使う音量（アラーム／メディア）、だんだん大きく、バイブレーション、スヌーズの間隔と回数、自動で止めるまでの時間。
+- ロック画面の鳴動画面と、止める・スヌーズのボタン付き通知。鳴動画面にはイヤホンとスピーカーのどちらで鳴っているかを表示します。
+- 再起動後（ロック解除前を含む）、日時・タイムゾーンの変更後、アプリ更新後もアラームとスヌーズを登録し直します。
+- 設定画面で、アラームに必要な許可（正確なアラーム・通知・ロック画面への表示）の状態を確認し、その場で許可できます。鳴った・止めた・スヌーズの履歴を端末内に記録します。
 
-設計上の判断と残課題は `docs/DESIGN.md` に記録しています。ライセンス全文は `LICENSE` を参照してください。
+## ダウンロード
 
-## 自動テスト
+[CIの実行結果](https://github.com/nekochan-cute/OpenEarAlarm/actions/workflows/android.yml)のArtifactsにある`OpenEarAlarm-debug.apk`を選ぶと、APKファイルのままダウンロードできます。debug署名の鍵は実行ごとに作られるため、別の実行のAPKを入れるときは一度アンインストールしてください。
 
-GitHub Actionsでは、ビルド・単体テスト・Lintに加えてAndroid 9（API 28）・Android 15（API 35）・Android 16（API 36）のエミュレーターで画面操作、アラーム登録・削除、スヌーズの復元、複数インスタンスの同時保存、指定時刻のアラーム配送とMediaPlayerの再生開始を検査します。物理イヤホンでの音声経路、端末再起動直後の鳴動、OS固有の省電力機能まで検証できるものではありません。
+## ビルド
 
-実機確認の手順とリリース判定は [QAチェックリスト](docs/QA.md) を参照してください。
+JDK 17とAndroid SDK（platform 36）が必要です。Gradle 8.13はWrapperが取得します。
 
-## 安全性と現状
+```sh
+./gradlew :app:assembleDebug          # app/build/outputs/apk/debug/app-debug.apk
+./gradlew :app:testDebugUnitTest      # JVM・Robolectricのテスト
+./gradlew :app:connectedDebugAndroidTest   # 端末またはエミュレーター
+./gradlew :app:testDebugUnitTest --tests '*ScreenshotTest*' -Pscreenshots   # 画面のPNGをbuild/screenshotsに出力
+```
 
-本ソースは開発版です。CIのAndroidビルド・単体テスト・Lintは成功しています。Doze、Bluetooth切断、Direct Bootのロック解除前動作、機種固有の挙動は実機未検証です。重要な起床用途に単独利用しないでください。代替音は端末内で生成するため、音声素材やネットワーク権限は不要です。
+CIでは、APKのビルド、単体テスト、Android Lintに加え、Android 9・15・16のエミュレーターで端末テストを実行します。
+
+## 仕組み
+
+予約・再生・出力先・保存の仕組みは [docs/DESIGN.md](docs/DESIGN.md)、実機での確認項目は [docs/QA.md](docs/QA.md) にまとめています。
+
+## ライセンス
+
+GNU General Public License version 3 or later（[LICENSE](LICENSE)）。内蔵のアラーム音はアプリが生成します。同梱のMaterialアイコンはApache-2.0です。

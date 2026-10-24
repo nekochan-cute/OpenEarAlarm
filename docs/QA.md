@@ -1,35 +1,41 @@
-# Manual acceptance tests for OpenEar Alarm
+# On-device test checklist
 
-CI is necessary but not sufficient for alarm correctness. This project is **not production-ready as the sole wake-up alarm** until the real-device gates below pass. Report device model, Android version, OEM skin, app commit and selected A/B settings with failures. No network telemetry is collected.
+Emulators cover scheduling, the UI and the playback service. These checks need real phones and headphones. When something fails, note the phone model, Android version, app commit and the alarm's settings, and attach the history from Settings → 履歴.
 
-## Critical blockers before shipping
+## Timing
 
-- [ ] Android 9 (API 28) and Android 16 (API 36) physical devices: cold launch, permission onboarding and exact alarm setup
-- [ ] 100/100 exact alarms after device sleep, recording planned and observed times (test with and without screen locked)
-- [ ] 20/20 alarms in Doze, without a foreground UI (do not test while another app already holds a wakelock)
-- [ ] Bluetooth Classic A2DP and LE Audio, wired 3.5mm and USB-C headsets: prefer headphones while connected
-- [ ] Disconnect Bluetooth / unplug cable during ringing: verify the phone speaker actually emits sound, not just that setPreferredDevice returns true
-- [ ] Reconnect after fallback: no double playback, no unintended volume spike
-- [ ] Both A and B ON/OFF combinations: alarm vs media stream, target volume 0/50/100%, fade 0/10/60 sec and best-effort restoration
-- [ ] DND, vibration disabled, alarm stream muted: clear warning about Android policy, no false promise of audibility
-- [ ] Stop and snooze from notification and locked screen, including repeated alarms and two alarms at identical times
-- [ ] Reboot before the first unlock (Direct Boot) and snooze across reboot: both pending notifications and actually audible playback tested
-- [ ] Unexpected process death versus Settings → Force stop: distinguish supported from OS-restricted behavior
-- [ ] App upgrade keeps alarms scheduled, time-zone/DST changes recompute future recurring times
-- [ ] UI in portrait, landscape, 320dp widths, 1.0/1.5/2.0 font scales; no clipped critical actions; TalkBack ordering and Japanese labels reviewed
-- [ ] Overnight battery usage, thermal throttling, OEM background restrictions and audio focus competition with video/calls
+- [ ] An alarm 2 minutes ahead rings on time with the screen locked (repeat on Android 9 and Android 16).
+- [ ] 20 consecutive alarms in Doze ring on time without the app open.
+- [ ] Weekly alarms move correctly across a time-zone change and a daylight-saving change.
 
-## Suggested checks
+## Output and volume
 
-1. Install the debug APK, set one test alarm about 2 minutes in the future, lock the screen, and compare actual ring time against the scheduled time. Do not depend on a newly installed test build as your only alarm.
-2. Check the app's **Settings → Diagnostics** before testing. A red notification/full-screen result can affect the visible ringing controls. Use the execution history to separate delivery failures from playback failures.
-3. With an actual Bluetooth headset connected, start another test alarm. Disconnect it during ringing and listen for audio from the device's speaker. Repeat with a wired headset. This cannot be established by routing API logs alone.
-4. For Doze experiments, use a disposable test alarm and the Android platform tools on a test device. `adb shell dumpsys deviceidle force-idle` alters system state. Restore normal state with `adb shell dumpsys deviceidle unforce` when finished.
-5. Test reboot recovery both after unlock and, with supported credentials, before the first unlock. Be aware that a completely powered-off phone cannot run Android alarms.
-6. Export redacted `adb logcat` traces if a failure happens. Logs can contain private information; scrub them before filing issues.
+- [ ] Wired, USB-C, Bluetooth A2DP and LE Audio headphones: the alarm plays in the headphones and the ringing screen says イヤホン.
+- [ ] Unplugging or disconnecting during ringing: sound continues from the speaker and the screen switches to スピーカー.
+- [ ] Reconnecting during ringing: no double playback and no sudden jump in volume.
+- [ ] With 音量を指定する on, the speaker and headphone levels match the sliders, including after a disconnect.
+- [ ] After stopping, the connected output returns to its previous level. A level changed during ringing is kept.
+- [ ] Alarm stream and media stream, fade-in 0, 10 and 60 s.
 
-## Automated gates
+## Stopping and snoozing
 
-GitHub Actions runs APK compilation, JVM tests, Android Lint, Compose UI tests, concurrent Store write tests, persisted snooze and exact-alarm delivery checks in Android 9, Android 15 and Android 16 emulators. These tests check software state and MediaPlayer start; they do **not** measure sound emitted by headphone or speaker hardware.
+- [ ] Stop and snooze from the ringing screen and from the notification, locked and unlocked.
+- [ ] The snooze limit hides snooze once it is used up. Automatic stop ends the alarm at the set time.
+- [ ] Two alarms at the same time ring once and both stop together.
 
-The release gate remains **blocked** pending actual device test evidence for the items above.
+## Restarts
+
+- [ ] Reboot without unlocking: the next alarm and a pending snooze ring.
+- [ ] App update keeps all alarms scheduled.
+- [ ] After a force stop the alarms ring again once the app has been opened.
+
+## Permissions and settings
+
+- [ ] With notifications off, the home screen shows the warning and 許可する opens the permission prompt or the notification settings.
+- [ ] With full-screen alarms off (Android 14+), the warning appears and 許可する opens the system setting.
+- [ ] Do Not Disturb with alarms allowed and with alarms blocked.
+
+## Display
+
+- [ ] 320 dp wide screens, landscape, and font scale 1.0, 1.5 and 2.0: nothing important is cut off and the weekday toggles stay on one line.
+- [ ] TalkBack reads the alarm rows, switches, weekday toggles and ringing buttons in order.

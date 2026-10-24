@@ -51,6 +51,8 @@ class ScreenshotTest(private val dark: Boolean) {
         val app = ApplicationProvider.getApplicationContext<android.app.Application>()
         org.robolectric.Shadows.shadowOf(app).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS, android.Manifest.permission.USE_FULL_SCREEN_INTENT)
         org.robolectric.shadows.ShadowAlarmManager.setCanScheduleExactAlarms(true)
+        // Robolectric cannot grant the full-screen intent permission (API 34+); report API 33, which has none.
+        org.robolectric.util.ReflectionHelpers.setStaticField(android.os.Build.VERSION::class.java, "SDK_INT", 33)
         val store = AlarmStore(context)
         val scheduler = AlarmScheduler(context)
         listOf(

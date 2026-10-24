@@ -1,37 +1,53 @@
 # OpenEar Alarm
 
-Android 9+ / Kotlin / Jetpack Compose / GPL-3.0-or-later.
+An offline alarm clock for Android that rings in your headphones when they are connected and on the phone speaker when they are not, including when they disconnect while the alarm is ringing.
 
-A fully open-source, offline alarm-clock project designed around headphone-first playback and **wake-up-priority speaker fallback**. No ads, telemetry, accounts, network permission, or proprietary SDKs.
+GPL-3.0-or-later. No ads, accounts, analytics or network permission.
 
-## What is implemented
+[日本語](README.ja.md)
 
-- Alarm list, creation, editing, repeat weekdays, 10/20/30-minute exact quick timers, enable/disable, deletion confirmation + undo.
-- Native system time picker; offline synthesized fallback alarm sound and user-selected local audio with persisted URI permission.
-- Independent A (`USAGE_ALARM` vs `USAGE_MEDIA`) and B (adjust system stream volume) settings, global defaults and per-alarm overrides; app gain fade-in; best-effort restore of volume.
-- `AlarmManager.setAlarmClock()` exact scheduling, boot/clock/time-zone/app-update rescheduling, one-off and weekly alarms.
-- Foreground ringing service, ongoing notification with stop/snooze actions, full-screen ringing activity, configurable automatic stop (including unlimited duration), vibration.
-- Headphone-first device preference with speaker fallback after disconnect; device diagnostics and contextual notification permission request.
-- Device-protected snooze state and per-alarm 0–10 snooze limits, process-wide serialized alarm storage, 40-event offline execution history and one-time built-in-tone recovery after playback failure.
-- CI APK generation, unit tests, Android Lint and emulator instrumentation checks. `docs/DESIGN.md` includes design and release blockers.
+<p>
+<img src="docs/screenshots/home-light.png" width="200" alt="Alarm list">
+<img src="docs/screenshots/editor-light.png" width="200" alt="Editing an alarm">
+<img src="docs/screenshots/settings-light.png" width="200" alt="Settings">
+<img src="docs/screenshots/ringing-dark.png" width="200" alt="Ringing">
+</p>
+
+## Features
+
+- One-off and weekly alarms, 10/20/30-minute timers, and the time left until the next alarm.
+- Sound: the built-in tone, one of the phone's alarm sounds, or any audio file. If a sound cannot be played, the built-in tone takes over.
+- Headphones first: wired, USB and Bluetooth headphones are preferred while connected. When they disconnect, the alarm moves to the speaker.
+- Volume per output: an alarm can set its own speaker and headphone levels. Android keeps a separate level for each output, so the speaker level applies as soon as headphones disconnect. The previous level is restored when the alarm stops.
+- Alarm or media volume stream, fade-in, vibration, snooze interval and count, and automatic stop.
+- Lock-screen ringing screen and a notification with stop and snooze. The ringing screen shows whether the alarm plays on headphones or the speaker.
+- Alarms survive reboots, including before the first unlock (Direct Boot), as well as time and time-zone changes and app updates. Pending snoozes are restored as well.
+- Settings show what alarms depend on (exact alarms, notifications, full-screen alarms) with a button to allow each one. A local history records when alarms fired, stopped and snoozed.
+
+## Download
+
+Each [CI run](https://github.com/nekochan-cute/OpenEarAlarm/actions/workflows/android.yml) lists `OpenEarAlarm-debug.apk` under Artifacts; it downloads as the APK itself. Debug builds are signed with a key created for each run, so uninstall before installing a build from another run.
 
 ## Building
 
-Open the project directory in Android Studio with **SDK 36, JDK 17+ and Gradle 8.13**; sync, then `gradle :app:assembleDebug` (or configure a Gradle wrapper using `gradle wrapper --gradle-version 8.13`). GitHub Actions builds a debug APK, runs JVM unit tests and Android Lint, and runs emulator instrumentation checks on Android 9 (API 28), Android 15 (API 35) and Android 16 (API 36). Physical-device hardware tests are still required. `gradle/wrapper/gradle-wrapper.properties` records the intended distribution, but the wrapper JAR/scripts need to be generated in an environment with Gradle installed.
+JDK 17 and the Android SDK (platform 36) are needed; the Gradle wrapper fetches Gradle 8.13.
 
-- Min SDK: 28 (Android 9)
-- Target / compile: 36 (Android 16)
-- AGP: 8.13.2, Kotlin: 2.2.21
-- Java: 17
+```sh
+./gradlew :app:assembleDebug          # app/build/outputs/apk/debug/app-debug.apk
+./gradlew :app:testDebugUnitTest      # JVM and Robolectric tests
+./gradlew :app:connectedDebugAndroidTest   # on a device or emulator
+./gradlew :app:testDebugUnitTest --tests '*ScreenshotTest*' -Pscreenshots   # screen PNGs in build/screenshots
+```
 
-Use a secondary alarm until end-to-end tests on actual devices establish reliability. For OS behavior/limits, see https://developer.android.com/develop/background-work/services/alarms and https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start .
+CI builds the APK, runs the unit tests and Android Lint, and runs the instrumented tests on Android 9, 15 and 16 emulators.
+
+## How it works
+
+See [docs/DESIGN.md](docs/DESIGN.md) for scheduling, playback, routing and storage, and [docs/QA.md](docs/QA.md) for the on-device test checklist.
+
+- minSdk 28 (Android 9), target and compile SDK 36
+- Kotlin 2.2, Jetpack Compose, Material 3
 
 ## License
 
-GNU General Public License version 3 or later; see `LICENSE`. Generated in-repo alarm tone is original and freely redistributable under the same license.
-
-The manual audio-routing and device-power test matrix is tracked in [docs/QA.md](docs/QA.md).
-
-## Safety and status
-
-This is a development snapshot, **not** a validated waking alarm. CI compilation, JVM unit tests and lint pass. Emulator UI tests run in CI. Doze, Bluetooth switching, before-first-unlock ringing and device-specific foreground-service behavior still require device verification. The generated fallback tone is local and requires no binary sound assets.
+GNU General Public License version 3 or later; see [LICENSE](LICENSE). The built-in alarm tone is generated by the app. The bundled Material icons are Apache-2.0.
